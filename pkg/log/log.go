@@ -15,6 +15,7 @@ const (
 )
 
 const (
+	TRACE     = slog.LevelDebug - 2
 	DEBUG     = slog.LevelDebug
 	OK        = slog.LevelInfo - 1
 	INFO      = slog.LevelInfo
@@ -26,6 +27,7 @@ const (
 
 var (
 	logLevelMap = map[string]slog.Level{
+		"trace":     TRACE,
 		"debug":     DEBUG,
 		"info":      INFO,
 		"warn":      WARN,
@@ -33,6 +35,7 @@ var (
 		"detection": DETECTION,
 	}
 	logLevelTag = map[slog.Level]string{
+		TRACE:     "[t] ",
 		DEBUG:     "[d] ",
 		OK:        "[\u2713] ",
 		INFO:      "[i] ",
@@ -41,6 +44,7 @@ var (
 		DETECTION: "",
 	}
 	logLevelColor = map[slog.Level]string{
+		TRACE:     magenta + logLevelTag[DEBUG] + reset,
 		DEBUG:     lightGray + logLevelTag[DEBUG] + reset,
 		OK:        green + logLevelTag[OK] + reset,
 		INFO:      blue + logLevelTag[INFO] + reset,
@@ -101,6 +105,12 @@ func Log(msg string, args ...any) {
 
 func Separator() {
 	fmt.Fprintf(os.Stderr, "---------------------------------------8<---------------------------------------\n")
+}
+
+func Trace(msg string, args ...any) {
+	if LogLevel <= TRACE {
+		fmt.Fprintf(os.Stderr, logLevelColor[DEBUG]+msg, args...)
+	}
 }
 
 func Debug(msg string, args ...any) {

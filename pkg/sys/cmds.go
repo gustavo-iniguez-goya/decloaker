@@ -1,7 +1,7 @@
 package sys
 
 import (
-	//"fmt"
+	"fmt"
 	"io/fs"
 	"os"
 	"os/exec"
@@ -12,8 +12,12 @@ import (
 )
 
 var (
-	CmdFind = "find"
-	CmdLs   = "ls"
+	CmdCat         = "cat"
+	CmdFind        = "find"
+	CmdLs          = "ls"
+	CmdBusybox     = "busybox"
+	CmdBusyboxLs   = "busybox-ls"
+	CmdBusyboxFind = "busybox-find"
 )
 
 // functions to execute system commands like ps, find, ls, netstat, ... to obtain info
@@ -46,11 +50,23 @@ func parseLsLine(lastDir, line string) (string, string) {
 	return lastDir, pth
 }
 
+func LsBusybox(dir string, args ...string) map[string]fs.FileInfo {
+	args = append([]string{CmdLs}, args...)
+	return lsBase(CmdBusybox, dir, args...)
+}
+
 // Ls uses the system "ls" command to list the files of directories.
 // ls /tmp -R -a
 func Ls(dir string, args ...string) map[string]fs.FileInfo {
+	//args = append([]string{CmdLs}, args...)
+	return lsBase(CmdLs, dir, args...)
+}
+
+func lsBase(bin, dir string, args ...string) map[string]fs.FileInfo {
+	log.Log("%s, %v\n", bin, args)
+
 	files := make(map[string]fs.FileInfo)
-	cmd := exec.Command(CmdLs, args...)
+	cmd := exec.Command(bin, args...)
 	out, err := cmd.Output()
 	if err != nil {
 		log.Error("sys.Ls() error listing files %s: %s\n\n", dir, err)
@@ -72,14 +88,49 @@ func Ls(dir string, args ...string) map[string]fs.FileInfo {
 	return files
 }
 
+func FindByInode(inode int, dir string) map[string]fs.FileInfo {
+	files := make(map[string]fs.FileInfo)
+
+	cmd := exec.Command(CmdFind, []string{"-inum", fmt.Sprint(inode)}...)
+	out, err := cmd.Output()
+	if err != nil {
+		log.Error("sys.Find() error listing files %s: %s\n\n", dir, err)
+		return files
+	}
+	lines := strings.Split(string(out), "\n")
+	idx := len(lines) - 1
+	// the last line of "find" adds a '\n', so when splitting the output by newline,
+	// it always adds an empty line.
+	lines = append(lines[:idx], lines[idx+1:]...)
+	for _, line := range lines {
+		fi, _ := os.Lstat(line)
+		files[line] = fi
+	}
+	delete(files, dir)
+
+	return files
+}
+
+// Find uses the command "find" to find files and directories
+func FindBusybox(dir string, args ...string) map[string]fs.FileInfo {
+	args = append([]string{CmdFind}, args...)
+	return findBase(CmdBusybox, dir, args...)
+}
+
 // Find uses the command "find" to find files and directories
 func Find(dir string, args ...string) map[string]fs.FileInfo {
-	files := make(map[string]fs.FileInfo)
 	// Follow symbolic links when parsing the cmdline, otherwise scanning a symlink
 	// that points to a directory returns just the directory.
 	args = append([]string{"-H"}, args...)
+	return findBase(CmdFind, dir, args...)
+}
 
-	cmd := exec.Command(CmdFind, args...)
+func findBase(bin, dir string, args ...string) map[string]fs.FileInfo {
+	files := make(map[string]fs.FileInfo)
+
+	log.Log("%s, %v\n", bin, args)
+
+	cmd := exec.Command(bin, args...)
 	out, err := cmd.Output()
 	if err != nil {
 		log.Error("sys.Find() error listing files %s: %s\n\n", dir, err)

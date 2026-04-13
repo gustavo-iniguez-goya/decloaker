@@ -117,13 +117,12 @@ func MmapFile(path string) (int64, string, error) {
 	}
 	size := info.Size()
 
-	// Memory-map the file
 	data, err := syscall.Mmap(
-		int(file.Fd()),     // file descriptor
-		0,                  // offset
-		int(size),          // length
-		syscall.PROT_READ,  // memory protection
-		syscall.MAP_SHARED, // flags
+		int(file.Fd()),
+		0,
+		int(size),
+		syscall.PROT_READ,
+		syscall.MAP_SHARED,
 	)
 	if err != nil {
 		return 0, "", fmt.Errorf("failed to mmap file: %v", err)
@@ -183,7 +182,7 @@ func ListFiles(path string, tool string, deep bool) (map[string]os.FileInfo, map
 	if !deep {
 		args = append(args, []string{"-maxdepth", "1"}...)
 	}
-	if tool == sys.CmdLs {
+	if tool == sys.CmdLs || tool == sys.CmdBusyboxLs {
 		args = []string{path, "-A"} //, "--format=single-column"}
 		if deep {
 			args = append(args, []string{"-R"}...)
@@ -194,6 +193,10 @@ func ListFiles(path string, tool string, deep bool) (map[string]os.FileInfo, map
 	lsDirs := make(map[string]fs.FileInfo)
 	if tool == sys.CmdLs {
 		lsDirs = sys.Ls(path, args...)
+	} else if tool == sys.CmdBusyboxLs {
+		lsDirs = sys.LsBusybox(path, args...)
+	} else if tool == sys.CmdBusyboxFind {
+		lsDirs = sys.FindBusybox(path, args...)
 	} else {
 		lsDirs = sys.Find(path, args...)
 	}

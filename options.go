@@ -123,6 +123,8 @@ var CLI struct {
 		} `cmd:"" help:"Open a file and check if it has hidden content (libc vs Go's std lib vs mmap)."`
 		HiddenLkms struct {
 		} `cmd:"" help:"Look for hidden kernel modules."`
+		SuspiciousProcs struct {
+		} `cmd:"" help:"Look for suspicious processes."`
 		HiddenProcs struct {
 			BruteForce bool `short:"b" help:"Try to find processes via brute force."`
 			MaxPid     int  `short:"m" help:"Don't scan pass this pid."`

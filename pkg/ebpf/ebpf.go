@@ -8,7 +8,6 @@ import (
 	"os"
 	"regexp"
 	"strings"
-	"time"
 
 	"github.com/cilium/ebpf"
 	"github.com/cilium/ebpf/link"
@@ -60,6 +59,7 @@ var (
 
 type Task struct {
 	Exe      string
+	Cmdline  string
 	Comm     string
 	Hostname string
 	Inode    string

@@ -183,6 +183,8 @@ func main() {
 		ret = decloaker.CheckHiddenLKM()
 	case "scan hidden-procs":
 		ret = decloaker.CheckHiddenProcs(CLI.Scan.HiddenProcs.BruteForce, CLI.Scan.HiddenProcs.MaxPid)
+	case "scan suspicious-procs":
+		ret = scanSuspiciousProcs()
 	case "scan hidden-sockets <protos>":
 		ret = decloaker.CheckHiddenSockets(CLI.Scan.HiddenSockets.Protos)
 	case "scan hidden-sockets":
@@ -278,6 +280,23 @@ func scanHiddenContent() int {
 	}
 
 	return decloaker.CheckHiddenContent(CLI.Scan.HiddenContent.Paths)
+}
+
+func scanSuspiciousProcs() int {
+	dlog.Info("Looking for suspicious processes\n")
+
+	suspicious := decloaker.CheckSuspiciousProcs()
+	if len(suspicious) == 0 {
+		dlog.Info("no suspicious processes found\n\n")
+		return decloaker.OK
+	}
+	for reason, t := range suspicious {
+		dlog.Detection("%s\n\texe: %s\n\tcomm: %s\n\tcmdline: %s\n\thostname: %s\n\tUID: %s\n\tGID: %s\n\tPID: %s\n\tPPID: %s\n",
+			reason,
+			t.Exe, t.Comm, t.Cmdline, t.Hostname, t.Uid, t.Gid, t.Pid, t.PPid)
+	}
+
+	return decloaker.SUSPICIOUS_PROC
 }
 
 func printNetstat() {

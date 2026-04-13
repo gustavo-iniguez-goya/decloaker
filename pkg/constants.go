@@ -2,14 +2,15 @@ package decloaker
 
 // Exit codes
 const (
-	OK             = 0
-	ERROR          = 1
-	FILES_HIDDEN   = 50
-	KMOD_HIDDEN    = 51
-	CONTENT_HIDDEN = 52
-	PID_BIND_MOUNT = 53
-	PROC_HIDDEN    = 54
-	CONN_HIDDEN    = 55
+	OK              = 0
+	ERROR           = 1
+	FILES_HIDDEN    = 50
+	KMOD_HIDDEN     = 51
+	CONTENT_HIDDEN  = 52
+	PID_BIND_MOUNT  = 53
+	PROC_HIDDEN     = 54
+	CONN_HIDDEN     = 55
+	SUSPICIOUS_PROC = 56
 )
 
 var (

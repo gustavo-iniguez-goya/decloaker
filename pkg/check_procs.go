@@ -18,10 +18,11 @@ import (
 )
 
 const (
-	PidName = 0
-	PidTGID = 3
-	PidPID  = 5
-	PidPPID = 6
+	PidFieldName = 1
+	PidName      = 0
+	PidTGID      = 3
+	PidPID       = 5
+	PidPPID      = 6
 
 	ProcPrefix = "/proc/"
 	ProcMounts = "/proc/mounts"
@@ -184,6 +185,73 @@ func bruteForcePids(nlTasks *taskstats.Client, expected map[string]os.FileInfo, 
 	}
 
 	return ret
+}
+
+// CheckSuspiciousProcs returns a list of suspicious tasks and why they have been flagged.
+func CheckSuspiciousProcs() map[string]ebpf.Task {
+	ret := OK
+	suspicious := make(map[string]ebpf.Task)
+
+	liveTasks := ebpf.GetPidList("")
+	for _, t := range liveTasks {
+		ret = OK
+		status, bin, _ := getPidInfo(fmt.Sprint(ProcPrefix, t.Pid))
+
+		msg := ""
+		exe := ""
+		if t.Exe != "" {
+			exe = t.Exe
+		} else {
+			exe = bin
+		}
+
+		cline, err := os.ReadFile(ProcPrefix + t.Pid + "/cmdline")
+		if err != nil {
+			log.Debug("CheckSuspiciousProcs, unable to read cmdline: %s, %s", t.Pid, t.Comm)
+			continue
+		}
+		cmdline := string(cline)
+		t.Cmdline = cmdline
+
+		// TODO:
+		// - Allow to configure it from a file, to allow flag other paths as suspicious (/var/www, etc).
+		// - Allow to parse process tree.
+		// - Allow to add explanations.
+		// this is just an example
+		if strings.HasPrefix(exe, "/var/tmp") ||
+			strings.HasPrefix(exe, "/tmp") ||
+			strings.HasPrefix(exe, "/dev/shm") ||
+			strings.HasPrefix(exe, "/memfd") {
+			msg = fmt.Sprintf("\tWARNING (%s): process launched from temporary directory\n", t.Pid)
+			ret = SUSPICIOUS_PROC
+		}
+
+		if len(status) > 0 && strings.Compare(status[PidPPID][1], "2") == 0 {
+			msg = fmt.Sprintf("\tWARNING (%s): ppid == 2?\n", t.Pid)
+			ret = SUSPICIOUS_PROC
+		}
+
+		if (strings.Contains(cmdline, "kthread") ||
+			strings.Contains(cmdline, "kworker") ||
+			strings.Contains(cmdline, "ksoft") ||
+			strings.Contains(cmdline, "kswap") ||
+			strings.Contains(cmdline, "kcompact") ||
+			strings.Contains(cmdline, "kdev") ||
+			strings.Contains(cmdline, "khung") ||
+			strings.Contains(cmdline, "rcu_tasks") ||
+			strings.Contains(cmdline, "irq") ||
+			strings.Contains(cmdline, "kaudit")) &&
+			strings.Compare(status[PidPPID][2], "2") != 0 && strings.Compare(status[PidPPID][2], "0") != 0 {
+
+			msg += fmt.Sprintf("\tWARNING (%s): possible process masqueraded as kernel thread\n", t.Pid)
+			ret = SUSPICIOUS_PROC
+		}
+		if ret == SUSPICIOUS_PROC {
+			suspicious[msg] = t
+		}
+	}
+
+	return suspicious
 }
 
 // CheckBindMounts looks for PIDs hidden with bind mounts.

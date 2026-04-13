@@ -58,12 +58,12 @@ func LsBusybox(dir string, args ...string) map[string]fs.FileInfo {
 // Ls uses the system "ls" command to list the files of directories.
 // ls /tmp -R -a
 func Ls(dir string, args ...string) map[string]fs.FileInfo {
-	//args = append([]string{CmdLs}, args...)
+	//args = append([]string{dir}, args...)
 	return lsBase(CmdLs, dir, args...)
 }
 
 func lsBase(bin, dir string, args ...string) map[string]fs.FileInfo {
-	log.Log("%s, %v\n", bin, args)
+	log.Trace("lsBase: %s, %s, %v\n", bin, dir, args)
 
 	files := make(map[string]fs.FileInfo)
 	cmd := exec.Command(bin, args...)

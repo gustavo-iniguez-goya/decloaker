@@ -86,19 +86,19 @@ func checkOtherMethods(nlTasks *taskstats.Client, pid int) (string, int) {
 	statInf := Stat([]string{procPath})
 	statWorked := len(statInf) > 0
 	chdirWorked := os.Chdir(fmt.Sprint(ProcPrefix, pid)) == nil
-	if statWorked {
+	if nlTasks != nil {
+		pidStats, _ := nlTasks.PID(pid)
+		if pidStats != nil {
+			log.Detection("\tWARNING: hidden PID confirmed via TaskStats: %d\n", pid)
+			ret = PROC_HIDDEN
+		}
+	} else if statWorked {
 		log.Detection("\tWARNING: hidden PID confirmed via Stat: %d\n", pid)
 		PrintStat([]string{procPath})
 		ret = PROC_HIDDEN
 	} else if chdirWorked {
 		log.Detection("\tWARNING: hidden PID confirmed via Chdir: %d\n", pid)
 		ret = PROC_HIDDEN
-	} else if nlTasks != nil {
-		pidStats, _ := nlTasks.PID(pid)
-		if pidStats != nil {
-			log.Detection("\tWARNING: hidden PID confirmed via TaskStats: %d\n", pid)
-			ret = PROC_HIDDEN
-		}
 	}
 
 	procPath = fmt.Sprint(ProcPrefix, pid, "/exe")

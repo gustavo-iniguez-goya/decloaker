@@ -8,6 +8,7 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/cilium/ebpf"
 	"github.com/cilium/ebpf/link"
@@ -95,7 +96,7 @@ func ConfigureIters(pinIters bool) {
 		return
 	}
 	if err := rlimit.RemoveMemlock(); err != nil {
-		log.Warn("[eBPF] unable to remove memlock\n")
+		log.Error("[eBPF] unable to remove memlock? unlikely. Review this system with other utilities, and offline\n")
 	}
 
 	var uname unix.Utsname

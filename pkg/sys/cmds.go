@@ -95,7 +95,8 @@ func FindByInode(inode int, dir string) map[string]fs.FileInfo {
 	out, err := cmd.Output()
 	if err != nil {
 		log.Error("sys.Find() error listing files %s: %s\n\n", dir, err)
-		return files
+		// sometimes when a system is backdoored, find may exit with error but list
+		// the files correctly. So we'll ignore this error.
 	}
 	lines := strings.Split(string(out), "\n")
 	idx := len(lines) - 1
@@ -134,7 +135,8 @@ func findBase(bin, dir string, args ...string) map[string]fs.FileInfo {
 	out, err := cmd.Output()
 	if err != nil {
 		log.Error("sys.Find() error listing files %s: %s\n\n", dir, err)
-		return files
+		// sometimes when a system is backdoored, find may exit with error but list
+		// the files correctly. So we'll ignore this error.
 	}
 	lines := strings.Split(string(out), "\n")
 	idx := len(lines) - 1

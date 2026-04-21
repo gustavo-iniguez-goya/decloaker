@@ -78,32 +78,32 @@ var CLI struct {
 		Dev       string `short:"d" help:"Disk device to read (/dev/sda1, ...)" required:"" name:"dev"`
 		Partition int    `short:"p" help:"Device partition to read (0, 1, 5, ...)" name:"partition"`
 		Ls        struct {
-			Paths     []string `arg:"" help:"Paths to read." required:"" name:"paths" type:"path"`
-			Compare   bool     `short:"c" help:"Compare the output against system's ls ouputi to detect hidden files."`
+			Paths     []string `arg:"" help:"Paths to read." required:"" name:"paths"`
+			Compare   bool     `short:"c" help:"Compare the output against system's ls output to detect hidden files."`
 			Recursive bool     `short:"r" help:"Enable deep scanning."`
 		} `cmd:"" help:"List directories and files by reading directly from the disk device"`
 		Cp struct {
-			Orig string `arg:"" help:"Origin file to copy." required:"" name:"orig" type:"path"`
-			Dest string `arg:"" help:"Destination file." required:"" name:"dest" type:"path"`
+			Orig string `arg:"" help:"Origin file to copy." required:"" name:"orig"`
+			Dest string `arg:"" help:"Destination file." required:"" name:"dest"`
 		} `cmd:"" help:"Copy directories and files directly from the disk device"`
 		// hidden, not implemented in go-disks yet.
 		Mv struct {
-			Orig string `arg:"" help:"Origin file to move or rename." required:"" name:"orig" type:"path"`
-			Dest string `arg:"" help:"Destination file." required:"" name:"dest" type:"path"`
+			Orig string `arg:"" help:"Origin file to move or rename." required:"" name:"orig"`
+			Dest string `arg:"" help:"Destination file." required:"" name:"dest"`
 		} `cmd:"" help:"Rename files directly from the disk device" hidden:""`
 		// hidden and dangerous, can cause filesystem errors
 		Rm struct {
-			Paths []string `arg:"" help:"Paths to delete. WARNING, DANGEROUS OPERATION, DO NOT USE" required:"" name:"paths" type:"path"`
+			Paths []string `arg:"" help:"Paths to delete. WARNING, DANGEROUS OPERATION, DO NOT USE" required:"" name:"paths"`
 		} `cmd:"" help:"Delete files directly from the disk device" hidden:""`
 		Stat struct {
-			Paths []string `arg:"" help:"Paths to read." required:"" name:"paths" type:"path"`
+			Paths []string `arg:"" help:"Paths to read." required:"" name:"paths"`
 		} `cmd:"" help:"Return information about a path"`
 		Cat struct {
-			Path    string `arg:"" help:"File path to read." required:"" name:"path" type:"path"`
+			Path    string `arg:"" help:"File path to read." required:"" name:"path"`
 			Compare bool   `short:"c" help:"Compare the output against system's cat ouput to detect hidden content."`
 		} `cmd:"" help:"Reads the content of a file and prints it to stdout"`
 		Find struct {
-			Paths     []string `arg:"" help:"Paths to read." required:"" name:"paths" type:"path"`
+			Paths     []string `arg:"" help:"Paths to read." required:"" name:"paths"`
 			Name      string   `short:"n" help:"Find files with this pattern."`
 			Inode     uint64   `short:"i" help:"Look for this inode."`
 			Recursive bool     `short:"r" help:"Enable deep scanning."`

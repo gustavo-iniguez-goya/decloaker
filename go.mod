@@ -1,14 +1,14 @@
 module github.com/gustavo-iniguez-goya/decloaker
 
-go 1.24.0
+go 1.25.7
 
 require (
 	github.com/alecthomas/kong v1.12.1
 	github.com/diskfs/go-diskfs v1.7.0
 	github.com/evilsocket/opensnitch/daemon v0.0.0-20250924105016-cb2feeb6a367
-	github.com/gustavo-iniguez-goya/go-diskfs v0.0.0-20251104225720-d857a8a77cd7
+	github.com/gustavo-iniguez-goya/go-diskfs v0.0.0-20260421001251-705dda55c20d
 	github.com/vishvananda/netlink v1.3.1
-	golang.org/x/sys v0.31.0
+	golang.org/x/sys v0.39.0
 )
 
 require (
@@ -30,7 +30,7 @@ require (
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/klauspost/compress v1.17.4 // indirect
 	github.com/pierrec/lz4/v4 v4.1.17 // indirect
-	github.com/pkg/xattr v0.4.9 // indirect
+	github.com/pkg/xattr v0.4.12 // indirect
 	github.com/sirupsen/logrus v1.9.4-0.20230606125235-dd1b4c2e81af // indirect
 	github.com/ulikunitz/xz v0.5.15 // indirect
 	github.com/vishvananda/netns v0.0.5 // indirect

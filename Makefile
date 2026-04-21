@@ -1,6 +1,7 @@
 
 prepare:
 	@mkdir -p bin/
+	go mod tidy
 
 ebpf:
 	@cd pkg/ebpf/kern/ && make

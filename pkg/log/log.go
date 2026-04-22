@@ -6,6 +6,7 @@ import (
 	"log"
 	"log/slog"
 	"os"
+	"strings"
 )
 
 const (
@@ -44,7 +45,7 @@ var (
 		DETECTION: "",
 	}
 	logLevelColor = map[slog.Level]string{
-		TRACE:     magenta + logLevelTag[DEBUG] + reset,
+		TRACE:     magenta + logLevelTag[TRACE] + reset,
 		DEBUG:     lightGray + logLevelTag[DEBUG] + reset,
 		OK:        green + logLevelTag[OK] + reset,
 		INFO:      blue + logLevelTag[INFO] + reset,
@@ -109,41 +110,53 @@ func Separator() {
 
 func Trace(msg string, args ...any) {
 	if LogLevel <= TRACE {
-		fmt.Fprintf(os.Stderr, logLevelColor[DEBUG]+msg, args...)
+		printPlain(TRACE, msg, args...)
 	}
 }
 
 func Debug(msg string, args ...any) {
 	if LogLevel <= DEBUG {
-		fmt.Fprintf(os.Stderr, logLevelColor[DEBUG]+msg, args...)
+		printPlain(DEBUG, msg, args...)
 	}
 }
 
 func Ok(msg string, args ...any) {
 	if LogLevel <= INFO {
-		fmt.Fprintf(os.Stderr, logLevelColor[OK]+msg, args...)
+		printPlain(OK, msg, args...)
 	}
 }
+
 func Info(msg string, args ...any) {
 	if LogLevel <= INFO {
-		fmt.Fprintf(os.Stderr, logLevelColor[INFO]+msg, args...)
+		printPlain(INFO, msg, args...)
 	}
 }
 
 func Warn(msg string, args ...any) {
 	if LogLevel <= WARN {
-		fmt.Fprintf(os.Stderr, logLevelColor[WARN]+msg, args...)
+		printPlain(WARN, msg, args...)
 	}
 }
 
 func Error(msg string, args ...any) {
 	if LogLevel <= ERROR {
-		fmt.Fprintf(os.Stderr, logLevelColor[ERROR]+msg, args...)
+		printPlain(ERROR, msg, args...)
 	}
 }
 
 func Detection(msg string, args ...any) {
 	if LogLevel <= DETECTION {
-		fmt.Printf(logLevelColor[DETECTION]+msg, args...)
+		printPlain(DETECTION, msg, args...)
 	}
+}
+
+func printPlain(level slog.Level, msg string, args ...any) {
+	if LogFormat != PLAIN && (level == DETECTION || level == WARN || level == ERROR) {
+		msg = strings.ReplaceAll(msg, "\n", " ")
+		msg = strings.ReplaceAll(msg, "\t", " ")
+		msg = strings.TrimSpace(msg)
+		slogger.Log(context.Background(), level, fmt.Sprintf(msg, args...))
+		return
+	}
+	fmt.Printf(logLevelColor[level]+msg, args...)
 }

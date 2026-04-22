@@ -7,6 +7,7 @@ import (
 	iofs "io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
@@ -15,16 +16,33 @@ import (
 	"github.com/gustavo-iniguez-goya/go-diskfs"
 	"github.com/gustavo-iniguez-goya/go-diskfs/filesystem"
 	"github.com/gustavo-iniguez-goya/go-diskfs/filesystem/ext4"
-	"github.com/gustavo-iniguez-goya/go-diskfs/filesystem/xfs"
 )
 
+// https://pkg.go.dev/io/fs#ValidPath
+func trimPath(path string) string {
+	// when replacing / by ., we ended up adding ./ to the path.
+	// we need to delete this prefix before passing it to WalkPath()
+	if strings.HasPrefix(path, "./") {
+		return strings.Replace(path, "./", "", 1)
+	}
+	if path == "" || path == "/" {
+		path = "."
+	}
+	if len(path) > 1 && path[0] == '/' {
+		path = path[1:]
+	}
+
+	return path
+}
+
 func parseEntries(path string, entries []iofs.DirEntry, inode uint64, search string, matchCb func(path string, e iofs.DirEntry)) {
+	log.Trace("parseEntries %s, inode=%d, search=%s\n", path, inode, search)
 	for _, e := range entries {
 		if e.Name() == "." || e.Name() == ".." {
 			continue
 		}
 
-		pth := path + "/" + e.Name()
+		pth := "/" + path + "/" + e.Name()
 		if inode > 0 {
 			info, _ := e.Info()
 			ino := info.Sys().(*syscall.Stat_t)
@@ -37,22 +55,45 @@ func parseEntries(path string, entries []iofs.DirEntry, inode uint64, search str
 			continue
 		}
 		matched, err := filepath.Match(search, e.Name())
-		if matched {
-			//list[utils.ToAscii(pth)] = e
-			matchCb(utils.ToAscii(pth), e)
-			continue
-		}
 		if err != nil {
 			log.Error("file pattern error: %s\n", err)
 			return
 		}
+		if matched {
+			matchCb(utils.ToAscii(pth), e)
+			continue
+		}
 	}
 }
 
-func Find(dev string, partition int, path string, inode uint64, search string, openMode diskfs.OpenModeOption, recursive bool) map[string]os.FileInfo {
-	if path[len(path)-1] == '/' {
-		path = path[0 : len(path)-1]
+func WalkPath(fs filesystem.FileSystem, path string, sep string, callback func(string, []iofs.DirEntry)) error {
+	path = trimPath(path)
+	log.Trace("walking dir %s\n", path)
+	entries, err := fs.ReadDir(path)
+	if err != nil {
+		log.Trace("WalkPath.ReadDir() error: %s\n", err)
+		return err
 	}
+	callback(path, entries)
+
+	for _, e := range entries {
+		if e.Name() == "." || e.Name() == ".." {
+			continue
+		}
+		fullPath := utils.ToAscii(path + "/" + e.Name())
+		if e.IsDir() {
+			WalkPath(fs, fullPath, sep, callback)
+			continue
+		}
+	}
+
+	return nil
+}
+
+func Find(dev string, partition int, path string, inode uint64, search string, openMode diskfs.OpenModeOption, recursive bool) map[string]os.FileInfo {
+	log.Debug("Find, dev=%s, partition=%d, path=%s, inode=%d, search=%s, recursive:%v\n", dev, partition, path, inode, search, recursive)
+	tempPath := trimPath(path)
+	log.Trace("Opening path %s\n", tempPath)
 
 	list := make(map[string]os.FileInfo)
 	disk, err := diskfs.Open(
@@ -72,9 +113,21 @@ func Find(dev string, partition int, path string, inode uint64, search string, o
 	}
 	defer fs.Close()
 
+	// print info and exit if path is a file
+	stat, err := fs.Stat(tempPath)
+	if err != nil {
+		log.Error("Unable to stat path %s: %s\n", path, err)
+		return list
+	}
+	if !stat.IsDir() {
+		list[utils.ToAscii(path)] = stat
+		return list
+	}
+
 	if !recursive {
-		entries, err := fs.ReadDir(path)
+		entries, err := fs.ReadDir(tempPath)
 		if err != nil {
+			log.Error("Unable to read path %s: %s\n", path, err)
 			return list
 		}
 		parseEntries(path, entries, inode, search,
@@ -85,11 +138,12 @@ func Find(dev string, partition int, path string, inode uint64, search string, o
 		return list
 	}
 
-	WalkPath(fs, path, "",
+	WalkPath(fs, tempPath, "",
 		func(dir string, entries []iofs.DirEntry) {
 			log.Debug("reading path %s\n", dir)
 			parseEntries(dir, entries, inode, search,
 				func(path string, e iofs.DirEntry) {
+					log.Debug("Find, walked path: %s\n", path)
 					info, _ := e.Info()
 					list[path] = info
 				})
@@ -104,18 +158,7 @@ func Find(dev string, partition int, path string, inode uint64, search string, o
 // functions to read files directly from the disk device.
 
 func ReadDir(dev string, partition int, path string, openMode diskfs.OpenModeOption, recursive bool) map[string]os.FileInfo {
-	tempPath := path
-	if path[len(path)-1] == '/' {
-		tempPath = path[0 : len(path)-1]
-	}
-	// https://pkg.go.dev/io/fs#ValidPath
-	if path[0] == '/' {
-		tempPath = path[1:]
-	}
-	if path == "/" {
-		tempPath = "."
-	}
-
+	tempPath := trimPath(path)
 	list := make(map[string]os.FileInfo)
 	disk, err := diskfs.Open(
 		dev,
@@ -134,17 +177,16 @@ func ReadDir(dev string, partition int, path string, openMode diskfs.OpenModeOpt
 	}
 	defer fs.Close()
 
+	stat, err := fs.Stat(tempPath)
+	if err != nil {
+		log.Error("Unable to stat path %s: %s\n", tempPath, err)
+		return list
+	}
+	if !stat.IsDir() {
+		list[utils.ToAscii("/"+path)] = stat
+		return list
+	}
 	if !recursive {
-		stat, err := fs.Stat(tempPath)
-		if err != nil {
-			log.Error("Unable to stat path %s: %s\n", tempPath, err)
-			return list
-		}
-		if !stat.IsDir() {
-			list[utils.ToAscii(path)] = stat
-			return list
-		}
-
 		entries, err := fs.ReadDir(tempPath)
 		if err != nil {
 			log.Error("Unable to read path %s: %s\n", tempPath, err)
@@ -177,33 +219,12 @@ func ReadDir(dev string, partition int, path string, openMode diskfs.OpenModeOpt
 				log.Log("%v\t%d\t%s\t%s\n", info.Mode(), info.Size(), info.ModTime().Format(time.RFC3339), info.Name())
 			}
 		})
+
 	if err != nil {
 		log.Warn("listDiskFiles warning: %s\n", err)
 	}
 
 	return list
-}
-
-func WalkPath(fs filesystem.FileSystem, path string, sep string, callback func(string, []iofs.DirEntry)) error {
-	//Log("reading dir %s\n\n", path)
-	entries, err := fs.ReadDir(path)
-	if err != nil {
-		return err
-	}
-	callback(path, entries)
-
-	for _, e := range entries {
-		if e.Name() == "." || e.Name() == ".." {
-			continue
-		}
-		fullPath := utils.ToAscii(path + "/" + e.Name())
-		if e.IsDir() {
-			WalkPath(fs, fullPath, sep, callback)
-			continue
-		}
-	}
-
-	return nil
 }
 
 // https://pkg.go.dev/github.com/diskfs/go-diskfs@v1.7.0/filesystem#FileSystem
@@ -221,37 +242,12 @@ func Cp(dev string, partition int, orig, dest string, openMode diskfs.OpenModeOp
 	if err != nil {
 		return fmt.Errorf("unable to read disk partition %s, %d, %s", dev, partition, err)
 	}
+	defer fs.Close()
 
 	var fd filesystem.File
-
-	switch fs.(type) {
-	case *ext4.FileSystem:
-
-		ext4fs, ok := fs.(*ext4.FileSystem)
-		if !ok {
-			return fmt.Errorf("%s, partition %d, is not a ext4 filesystem", dev, partition)
-		}
-		defer ext4fs.Close()
-
-		var err error
-		fd, err = ext4fs.OpenFile(orig, os.O_RDONLY)
-		if err != nil {
-			return fmt.Errorf("ext4.OpenFile() %s", err)
-		}
-	case *xfs.FileSystem:
-		xfs, ok := fs.(*xfs.FileSystem)
-		if !ok {
-			return fmt.Errorf("%s:%d is not a xfs filesystem", dev, partition)
-		}
-		defer xfs.Close()
-		var err error
-		fd, err = xfs.OpenFile(orig, os.O_RDONLY)
-		if err != nil {
-			return fmt.Errorf("xfs.OpenFile() %s", err)
-		}
-
-	default:
-		return fmt.Errorf("unknown filesysem %v", fs)
+	fd, err = fs.OpenFile(orig, os.O_RDONLY)
+	if err != nil {
+		return fmt.Errorf("ext4.OpenFile() %s", err)
 	}
 	defer fd.Close()
 
@@ -292,7 +288,7 @@ func Mv(dev string, partition int, orig, dest string, openMode diskfs.OpenModeOp
 
 	err = ext4fs.Rename(orig, dest)
 	if err != nil {
-		return fmt.Errorf("renme/move error: %s", err)
+		return fmt.Errorf("rename/move error: %s", err)
 	}
 
 	return err
@@ -351,42 +347,16 @@ func Stat(dev string, partition int, paths []string, openMode diskfs.OpenModeOpt
 	if err != nil {
 		return nil, fmt.Errorf("unable to read disk partition %s, %d, %s", dev, partition, err)
 	}
+	defer fs.Close()
 
 	var list []os.FileInfo
-
-	switch fs.(type) {
-	case *ext4.FileSystem:
-		ext4fs, ok := fs.(*ext4.FileSystem)
-		if !ok {
-			return nil, fmt.Errorf("%s:%d is not a ext4 filesystem", dev, partition)
+	for _, p := range paths {
+		stat, err := fs.Stat(p)
+		if err != nil {
+			log.Error("ext4.Stat() %s\n", err)
+			continue
 		}
-		defer ext4fs.Close()
-
-		for _, p := range paths {
-			stat, err := ext4fs.Stat(p)
-			if err != nil {
-				log.Error("ext4.Stat() %s\n", err)
-				continue
-			}
-			list = append(list, stat)
-		}
-	case *xfs.FileSystem:
-		xfs, ok := fs.(*xfs.FileSystem)
-		if !ok {
-			return nil, fmt.Errorf("%s:%d is not a xfs filesystem", dev, partition)
-		}
-		defer xfs.Close()
-
-		for _, p := range paths {
-			stat, err := xfs.Stat(p)
-			if err != nil {
-				log.Error("xfs.Stat() %s\n", err)
-				continue
-			}
-			list = append(list, stat)
-		}
-	default:
-		return list, fmt.Errorf("%v not implemented yet", fs.Type())
+		list = append(list, stat)
 	}
 
 	return list, nil
@@ -407,39 +377,13 @@ func ReadFile(dev string, partition int, path string) ([]byte, error) {
 		return nil, fmt.Errorf("unable to read disk partition %s, %d, %s", dev, partition, err)
 	}
 
-	content := []byte{}
 	var fd filesystem.File
-
-	switch fs.(type) {
-	case *ext4.FileSystem:
-		ext4fs, ok := fs.(*ext4.FileSystem)
-		if !ok {
-			return nil, fmt.Errorf("%s:%d is not a ext4 filesystem", dev, partition)
-		}
-		defer ext4fs.Close()
-
-		var err error
-		fd, err = ext4fs.OpenFile(path, os.O_RDONLY)
-		if err != nil {
-			return nil, fmt.Errorf("ext4.OpenFile() %s\n", err)
-		}
-
-	case *xfs.FileSystem:
-		xfs, ok := fs.(*xfs.FileSystem)
-		if !ok {
-			return nil, fmt.Errorf("%s:%d is not a xfs filesystem", dev, partition)
-		}
-		defer xfs.Close()
-		var err error
-		fd, err = xfs.OpenFile(path, os.O_RDONLY)
-		if err != nil {
-			return nil, fmt.Errorf("xfs.OpenFile() %s\n", err)
-		}
-	default:
-		return nil, fmt.Errorf("%v not implemented\n", fs)
+	fd, err = fs.OpenFile(path, os.O_RDONLY)
+	if err != nil {
+		return nil, fmt.Errorf("ext4.OpenFile() %s\n", err)
 	}
-	defer fd.Close()
 
+	content := []byte{}
 	scanner := bufio.NewReader(fd)
 	for {
 		line, err := scanner.ReadBytes('\n')

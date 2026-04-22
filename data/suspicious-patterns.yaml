@@ -1,0 +1,98 @@
+version: 1
+
+# --- Detection methods to enable ---
+detection:
+  bind_mounts:
+    enabled: true
+    source: /proc/mounts           # path to inspect for over-mounted /proc/<pid> entries
+
+  ebpf_compare:
+    enabled: true                  # compare eBPF live task list vs /proc readdir
+
+  cgroups:
+    enabled: true
+    root: /sys/fs/cgroup           # cgroup v2 root; change for cgroup v1 paths
+    file_suffix: .procs            # filename suffix to look for (cgroup.procs)
+
+  brute_force:
+    enabled: false                 # expensive; enable explicitly or via --brute-force flag
+    pid_max: 0                     # 0 = read from /proc/sys/kernel/pid_max dynamically
+    pid_min: 1                     # start from this PID (skip 0)
+
+# --- Per-process attribute patterns (applied to every visible PID) ---
+process_patterns:
+
+  # Processes with suspicious exe paths
+  suspicious_exe_paths:
+    - pattern: "^/tmp/"
+      severity: high
+      description: "Executable running from /tmp"
+    - pattern: "^/dev/shm/"
+      severity: high
+      description: "Executable running from /dev/shm (in-memory)"
+    - pattern: "^/run/user/"
+      severity: medium
+      description: "Executable running from user runtime dir"
+    - pattern: "^/memfd"
+      severity: high
+      description: "Executable fileless"
+    - pattern: "^/proc"
+      severity: high
+      description: "Executable launched from /proc (such as a file descriptor)"
+    #- pattern: "(deleted)$"
+    #  severity: high
+    #  description: "Executable has been deleted from disk (fileless malware pattern)"
+
+  # Suspicious comm names (the 15-char kernel name in /proc/<pid>/comm)
+  suspicious_comm:
+    - pattern: "^(kthread|kworker|ksoft|kcompact|kdev|ksoftirqd|kaudit|khung|kdev|kswap|oom_|irq|rcu_|psimon|migration|watchdog|idle)"
+      severity: critical
+      description: "Userspace process impersonating a kernel thread name"
+    - pattern: "^\\."
+      severity: medium
+      description: "Process comm starts with a dot (hidden name)"
+    - pattern: "\\s"
+      severity: medium
+      description: "Process comm contains whitespace"
+
+  # Suspicious cmdline patterns
+  suspicious_cmdline:
+    - pattern: "(\\[|)(kthread|kworker|ksoft|kcompact|kdev|ksoftirqd|kaudit|khung|kdev|kswap|oom_|irq|rcu_|psimon|migration|watchdog|idle)"
+      severity: critical
+      description: "Userspace process impersonating a kernel thread"
+    - pattern: "/dev/tcp/"
+      severity: critical
+      description: "Bash /dev/tcp redirection (reverse shell)"
+    - pattern: "base64\\s+--decode|base64\\s+-d"
+      severity: high
+      description: "In-flight base64 decode (obfuscated payload)"
+    - pattern: "python.*-c|perl.*-e|ruby.*-e"
+      severity: medium
+      description: "Interpreter one-liner"
+
+  # UID/GID anomalies (JSON-style numeric comparisons aren't great in YAML;
+  # use string patterns or add a separate 'uid_rules' block below)
+  suspicious_uid:
+    #- uid: 0
+    #  comm_pattern: "^(?!systemd|init|kthread|kworker)"
+    #  severity: high
+    #  description: "Root process with unexpected comm name"
+
+# --- Allowlist: never flag these even if they match above patterns ---
+allowlist:
+  exe_paths:
+    - "^/usr/bin/"
+    - "^/usr/sbin/"
+    - "^/bin/"
+    - "^/sbin/"
+    - "^/lib/"
+    - "^/lib64/"
+
+  comm_names:
+    - "sshd"
+    - "systemd"
+    - "dockerd"
+
+  pids:
+    - 1       # init/systemd
+    - 2       # kthreadd

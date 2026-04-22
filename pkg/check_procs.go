@@ -10,6 +10,8 @@ import (
 	"strconv"
 	"strings"
 
+	//"github.com/gustavo-iniguez-goya/decloaker/pkg/disk"
+	"github.com/gustavo-iniguez-goya/decloaker/pkg/config"
 	"github.com/gustavo-iniguez-goya/decloaker/pkg/ebpf"
 	"github.com/gustavo-iniguez-goya/decloaker/pkg/log"
 	"github.com/gustavo-iniguez-goya/decloaker/pkg/sys"
@@ -18,11 +20,13 @@ import (
 )
 
 const (
+	// index of the fields of /proc/<pid>/status entries
 	PidFieldName = 1
 	PidName      = 0
 	PidTGID      = 3
 	PidPID       = 5
 	PidPPID      = 6
+	PidUID       = 8
 
 	ProcPrefix = "/proc/"
 	ProcMounts = "/proc/mounts"
@@ -188,7 +192,7 @@ func bruteForcePids(nlTasks *taskstats.Client, expected map[string]os.FileInfo, 
 }
 
 // CheckSuspiciousProcs returns a list of suspicious tasks and why they have been flagged.
-func CheckSuspiciousProcs() map[string]ebpf.Task {
+func CheckSuspiciousProcs(cfg *config.PatternsConfig) map[string]ebpf.Task {
 	ret := OK
 	suspicious := make(map[string]ebpf.Task)
 
@@ -214,15 +218,11 @@ func CheckSuspiciousProcs() map[string]ebpf.Task {
 		t.Cmdline = cmdline
 
 		// TODO:
-		// - Allow to configure it from a file, to allow flag other paths as suspicious (/var/www, etc).
 		// - Allow to parse process tree.
-		// - Allow to add explanations.
+		// - check for history=/dev/null in /proc/<pid>/environ
 		// this is just an example
-		if strings.HasPrefix(exe, "/var/tmp") ||
-			strings.HasPrefix(exe, "/tmp") ||
-			strings.HasPrefix(exe, "/dev/shm") ||
-			strings.HasPrefix(exe, "/memfd") {
-			msg = fmt.Sprintf("\tWARNING (%s): process launched from temporary directory\n", t.Pid)
+		if match := cfg.MatchExe(exe); match != nil {
+			msg = fmt.Sprintf("\tWARNING (%s): %s\n", t.Pid, match.Description)
 			ret = SUSPICIOUS_PROC
 		}
 
@@ -231,19 +231,11 @@ func CheckSuspiciousProcs() map[string]ebpf.Task {
 			ret = SUSPICIOUS_PROC
 		}
 
-		if (strings.Contains(cmdline, "kthread") ||
-			strings.Contains(cmdline, "kworker") ||
-			strings.Contains(cmdline, "ksoft") ||
-			strings.Contains(cmdline, "kswap") ||
-			strings.Contains(cmdline, "kcompact") ||
-			strings.Contains(cmdline, "kdev") ||
-			strings.Contains(cmdline, "khung") ||
-			strings.Contains(cmdline, "rcu_tasks") ||
-			strings.Contains(cmdline, "irq") ||
-			strings.Contains(cmdline, "kaudit")) &&
-			strings.Compare(status[PidPPID][2], "2") != 0 && strings.Compare(status[PidPPID][2], "0") != 0 {
+		if match := cfg.MatchCmdline(cmdline); match != nil {
+			// TODO
+			//if strings.Compare(status[PidPPID][2], "2") != 0 && strings.Compare(status[PidPPID][2], "0") != 0 && strings.Compare(status[PidUID][2], "0") != 0 {
 
-			msg += fmt.Sprintf("\tWARNING (%s): possible process masqueraded as kernel thread\n", t.Pid)
+			msg += fmt.Sprintf("\tWARNING (%s): %s\n", t.Pid, match.Description)
 			ret = SUSPICIOUS_PROC
 		}
 		if ret == SUSPICIOUS_PROC {

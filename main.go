@@ -27,6 +27,7 @@ import (
 	"github.com/alecthomas/kong"
 	"github.com/evilsocket/opensnitch/daemon/netlink"
 	"github.com/gustavo-iniguez-goya/decloaker/pkg"
+	"github.com/gustavo-iniguez-goya/decloaker/pkg/config"
 	disk "github.com/gustavo-iniguez-goya/decloaker/pkg/disk"
 	"github.com/gustavo-iniguez-goya/decloaker/pkg/ebpf"
 	dlog "github.com/gustavo-iniguez-goya/decloaker/pkg/log"
@@ -284,8 +285,13 @@ func scanHiddenContent() int {
 
 func scanSuspiciousProcs() int {
 	dlog.Info("Looking for suspicious processes\n")
+	cfg, err := config.New(CLI.Scan.SuspiciousProcs.Cfg)
+	if err != nil {
+		dlog.Warn("Invalid configuration: %s\n", err)
+		return decloaker.OK
+	}
 
-	suspicious := decloaker.CheckSuspiciousProcs()
+	suspicious := decloaker.CheckSuspiciousProcs(cfg)
 	if len(suspicious) == 0 {
 		dlog.Info("no suspicious processes found\n\n")
 		return decloaker.OK

@@ -19,6 +19,54 @@ detection:
     pid_max: 0                     # 0 = read from /proc/sys/kernel/pid_max dynamically
     pid_min: 1                     # start from this PID (skip 0)
 
+  # default paths to look for hidden files or content in files
+  # wildcards allowed
+  default_hidden_paths:
+    files:
+      - "/etc/"
+      - "/lib/"
+      - "/usr/"
+      - "/sbin/"
+      - "/lib/"
+      - "/var/spool/"
+      - "/var/tmp/"
+      - "/home/*/.config/"
+
+    content:
+      - "/etc/ld.so.preload"
+      - "/etc/ld.so.conf"
+      - "/etc/ld.so.conf.d/*"
+      - "/etc/passwd"
+      - "/etc/shadow"
+      - "/etc/sudoers"
+      - "/etc/motd"
+      - "/etc/environment"
+      - "/etc/profile"
+      - "/etc/profile.d/*"
+      - "/etc/rc.local"
+      - "/etc/rc.d/rc.local"
+      - "/etc/init.d/*"
+      - "/etc/rc*.d/*"
+      - "/etc/init/*"
+      - "/etc/update-motd.d/*"
+      - "/etc/modules"
+      - "/etc/modules-load.d/*"
+      - "/etc/udev/*/*"
+      - "/etc/cron*/*"
+      - "/etc/crontab"
+      - "/etc/xdg/autostart/*"
+      - "/etc/systemd/*/*/*"
+      - "/usr/lib/modules-load.d/*"
+      - "/var/spool/*/*/*"
+      - "/home/*/.bashrc"
+      - "/home/*/.config/autostart/*"
+      - "/home/*/.config/systemd/*/*"
+      - "/lib/systemd/*/*"
+      - "/usr/lib/systemd/*/*"
+      - "/root/*"
+      - "/proc/net/*"
+
+
 # --- Per-process attribute patterns (applied to every visible PID) ---
 process_patterns:
 

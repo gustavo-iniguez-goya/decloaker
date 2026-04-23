@@ -62,6 +62,10 @@ type fileDetectionConfig struct {
 		PidMax  *int  `yaml:"pid_max"`
 		PidMin  *int  `yaml:"pid_min"`
 	} `yaml:"brute_force"`
+	DefaultHiddenPaths *struct {
+		Files   []string `yaml:"files"`
+		Content []string `yaml:"content"`
+	} `yaml:"default_hidden_paths"`
 }
 
 // rawConfig is what we unmarshal from YAML (both the embedded default and any
@@ -103,6 +107,10 @@ type PatternsConfig struct {
 			Enabled bool
 			PidMax  int
 			PidMin  int
+		}
+		DefaultHiddenPaths struct {
+			Files   []string
+			Content []string
 		}
 	}
 	ExePaths []PatternRule
@@ -227,6 +235,20 @@ func mergeRaw(base, override *rawConfig) *rawConfig {
 			base.Detection.BruteForce.PidMin = bf.PidMin
 		}
 	}
+	if bf := override.Detection.DefaultHiddenPaths; bf != nil {
+		if base.Detection.DefaultHiddenPaths == nil {
+			base.Detection.DefaultHiddenPaths = &struct {
+				Files   []string `yaml:"files"`
+				Content []string `yaml:"content"`
+			}{}
+		}
+		if bf.Files != nil {
+			base.Detection.DefaultHiddenPaths.Files = bf.Files
+		}
+		if bf.Content != nil {
+			base.Detection.DefaultHiddenPaths.Content = bf.Content
+		}
+	}
 
 	// --- process_patterns: non-nil = full replace ---
 	if override.Patterns.ExePaths != nil {
@@ -293,6 +315,14 @@ func compile(rc *rawConfig) (*PatternsConfig, error) {
 		}
 		if bf.PidMin != nil {
 			cfg.Detection.BruteForce.PidMin = *bf.PidMin
+		}
+	}
+	if bf := rc.Detection.DefaultHiddenPaths; bf != nil {
+		if bf.Files != nil {
+			cfg.Detection.DefaultHiddenPaths.Files = bf.Files
+		}
+		if bf.Content != nil {
+			cfg.Detection.DefaultHiddenPaths.Content = bf.Content
 		}
 	}
 

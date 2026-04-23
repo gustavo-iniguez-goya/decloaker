@@ -259,8 +259,13 @@ func main() {
 func scanHiddenFiles() int {
 	if CLI.Scan.WithBuiltinPaths {
 		paths := utils.ExpandPaths(decloaker.DefaultHiddenFilesPaths)
+		cfg, err := config.New("")
+		if err == nil {
+			paths = utils.ExpandPaths(cfg.Detection.DefaultHiddenPaths.Files)
+		}
 		CLI.Scan.HiddenFiles.Paths = append(CLI.Scan.HiddenFiles.Paths, paths...)
 		CLI.Scan.HiddenFiles.Recursive = true
+		dlog.Trace("Scanning for hidden files: %v\n", paths)
 	}
 	if len(CLI.Scan.HiddenFiles.Paths) == 0 {
 		dlog.Error("no paths supplied\n")
@@ -273,7 +278,12 @@ func scanHiddenFiles() int {
 func scanHiddenContent() int {
 	if CLI.Scan.WithBuiltinPaths {
 		paths := utils.ExpandPaths(decloaker.DefaultHiddenContentPaths)
+		cfg, err := config.New("")
+		if err == nil {
+			paths = utils.ExpandPaths(cfg.Detection.DefaultHiddenPaths.Content)
+		}
 		CLI.Scan.HiddenContent.Paths = append(CLI.Scan.HiddenContent.Paths, paths...)
+		dlog.Trace("Scanning for hidden content: %v\n", paths)
 	}
 	if len(CLI.Scan.HiddenContent.Paths) == 0 {
 		dlog.Error("no paths supplied")

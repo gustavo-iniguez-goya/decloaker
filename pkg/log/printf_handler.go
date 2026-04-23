@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	//"time"
 )
 
 const (
@@ -27,6 +26,21 @@ const (
 	lightCyan    = "\033[96m"
 	white        = "\033[97m"
 )
+
+var HandlerOpts = &slog.HandlerOptions{
+	ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
+		if a.Key == slog.LevelKey {
+			level := a.Value.Any().(slog.Level)
+			switch level {
+			case TRACE:
+				a.Value = slog.StringValue("TRACE")
+			case DETECTION:
+				a.Value = slog.StringValue("DETECTION")
+			}
+		}
+		return a
+	},
+}
 
 func colorize(colorCode int, v string) string {
 	return fmt.Sprintf(red, v, reset)

@@ -63,21 +63,18 @@ var (
 )
 
 func NewLogger(format string) {
-
 	switch format {
 	case JSON:
 		LogFormat = JSON
-		slogger = slog.New(slog.NewJSONHandler(os.Stdout, nil))
-		slog.SetDefault(slogger)
+		slogger = slog.New(slog.NewJSONHandler(os.Stdout, HandlerOpts))
 	case TEXT:
 		LogFormat = TEXT
-		slogger = slog.New(slog.NewTextHandler(os.Stdout, nil))
-		slog.SetDefault(slogger)
+		slogger = slog.New(slog.NewTextHandler(os.Stdout, HandlerOpts))
 	default:
 		slogger = slog.New(&SimpleHandler{level: slog.LevelDebug})
-		slog.SetDefault(slogger)
 		LogFormat = PLAIN
 	}
+	slog.SetDefault(slogger)
 }
 
 func SetLogLevel(level string) {
@@ -85,7 +82,7 @@ func SetLogLevel(level string) {
 }
 
 func Log(msg string, args ...any) {
-	if LogLevel >= DETECTION {
+	if LogLevel > INFO {
 		return
 	}
 
@@ -151,11 +148,13 @@ func Detection(msg string, args ...any) {
 }
 
 func printPlain(level slog.Level, msg string, args ...any) {
-	if LogFormat != PLAIN && (level == DETECTION || level == WARN || level == ERROR) {
-		msg = strings.ReplaceAll(msg, "\n", " ")
-		msg = strings.ReplaceAll(msg, "\t", " ")
-		msg = strings.TrimSpace(msg)
-		slogger.Log(context.Background(), level, fmt.Sprintf(msg, args...))
+	if LogFormat != PLAIN {
+		if level == DETECTION || level == WARN || level == ERROR {
+			msg = strings.ReplaceAll(msg, "\n", " ")
+			msg = strings.ReplaceAll(msg, "\t", " ")
+			msg = strings.TrimSpace(msg)
+			slogger.Log(context.Background(), level, fmt.Sprintf(msg, args...))
+		}
 		return
 	}
 	fmt.Printf(logLevelColor[level]+msg, args...)

@@ -45,7 +45,7 @@ jobs:
           echo "github release: ${{ github.sha }} - ${{ matrix.target }}" > decloaker-$TAG-${{ matrix.target }}.txt
           sha256sum bin/decloaker >> decloaker-$TAG-${{ matrix.target }}.txt
 
-          tar zcf "decloaker-$(date +%Y%m%d-$TAG)-${{ matrix.target }}.tar.gz" bin/decloaker README.md LICENSE checksums.txt
+          tar zcf "decloaker-$(date +%Y%m%d-$TAG)-${{ matrix.target }}.tar.gz" bin/decloaker README.md LICENSE decloaker*.txt
           cat decloaker-$TAG-${{ matrix.target }}.txt
           ls -lh "decloaker-$(date +%Y%m%d-$TAG)-${{ matrix.target }}.tar.gz"
 

@@ -52,7 +52,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: decloaker-${{ matrix.target }}
+          name: decloaker-${{ github.ref_name }}-${{ matrix.target }}
           path: |
             decloaker-*.tar.gz
             decloaker-*.txt
@@ -67,12 +67,8 @@ jobs:
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
-          path: artifacts
-
-      - name: Flatten files
-        run: |
-          mkdir dist
-          find artifacts -name "decloaker-*" -exec mv {} dist/ \;
+          path: dist
+          merge-multiple: true
 
       - name: Verify
         run: ls -lh dist

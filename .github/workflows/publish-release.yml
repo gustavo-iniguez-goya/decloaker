@@ -42,19 +42,42 @@ jobs:
           echo "Compiling for $target on ${{ matrix.runner }}"
           sudo apt install libbpf-dev clang
           GOARCH=${{ matrix.target }} make
-          echo "github release: ${{ github.sha }}" > checksums.txt
-          sha256sum bin/decloaker > checksums.txt
+          echo "github release: ${{ github.sha }} - ${{ matrix.target }}" >> checksums.txt
+          sha256sum bin/decloaker >> checksums.txt
 
           tar zcf "decloaker-$(date +%Y%m%d-$TAG)-${{ matrix.target }}.tar.gz" bin/decloaker README.md LICENSE checksums.txt
           cat checksums.txt
           ls -lh "decloaker-$(date +%Y%m%d-$TAG)-${{ matrix.target }}.tar.gz"
 
-      - name: Release
-        uses: softprops/action-gh-release@v2
-        if: github.ref_type == 'tag'
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
         with:
-          draft: yes
-          generate_release_notes: yes
-          files: |
-            decloaker*.tar.gz
+          name: decloaker-${{ matrix.target }}
+          path: decloaker-*.tar.gz
 
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Flatten files
+        run: |
+          mkdir dist
+          find artifacts -name "*.tar.gz" -exec mv {} dist/ \;
+
+      - name: Verify
+        run: ls -lh dist
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          generate_release_notes: true
+          files: dist/*.tar.gz

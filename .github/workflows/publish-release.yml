@@ -42,18 +42,20 @@ jobs:
           echo "Compiling for $target on ${{ matrix.runner }}"
           sudo apt install libbpf-dev clang
           GOARCH=${{ matrix.target }} make
-          echo "github release: ${{ github.sha }} - ${{ matrix.target }}" >> checksums.txt
-          sha256sum bin/decloaker >> checksums.txt
+          echo "github release: ${{ github.sha }} - ${{ matrix.target }}" > decloaker-$TAG-${{ matrix.target }}.txt
+          sha256sum bin/decloaker >> decloaker-$TAG-${{ matrix.target }}.txt
 
           tar zcf "decloaker-$(date +%Y%m%d-$TAG)-${{ matrix.target }}.tar.gz" bin/decloaker README.md LICENSE checksums.txt
-          cat checksums.txt
+          cat decloaker-$TAG-${{ matrix.target }}.txt
           ls -lh "decloaker-$(date +%Y%m%d-$TAG)-${{ matrix.target }}.tar.gz"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: decloaker-${{ matrix.target }}
-          path: decloaker-*.tar.gz
+          path: |
+            decloaker-*.tar.gz
+            decloaker-*.txt
 
   release:
     needs: build
@@ -70,7 +72,7 @@ jobs:
       - name: Flatten files
         run: |
           mkdir dist
-          find artifacts -name "*.tar.gz" -exec mv {} dist/ \;
+          find artifacts -name "decloaker-*" -exec mv {} dist/ \;
 
       - name: Verify
         run: ls -lh dist
@@ -80,4 +82,4 @@ jobs:
         with:
           draft: true
           generate_release_notes: true
-          files: dist/*.tar.gz
+          files: dist/decloaker*

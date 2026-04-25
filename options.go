@@ -25,6 +25,7 @@ var CLI struct {
 	Format         string      `short:"f" help:"" global:""`
 	LogLevel       string      `help:"log level (debug,info,warn,error,detection). Use detection to display only detections" default:"info" enum:"debug,info,warning,error,detection"`
 	PinKernelLists bool        `help:"Make kernel lists permanent (kmods, pids, ...). They'll be available in /sys/fs/bpf/decloaker/tasks and /sys/fs/bpf/decloaker/kmods."`
+	ConfigFile     string      `help:"configuration file" type:"path"`
 	//Output  string `short:"o" help:"" global:""`
 	//LogDate bool   `global:""`
 	//LogTime bool   `global:""`

@@ -36,6 +36,8 @@ import (
 	"github.com/gustavo-iniguez-goya/go-diskfs"
 )
 
+var cfg *config.PatternsConfig
+
 func main() {
 	ctx := kong.Parse(&CLI,
 		kong.Name("decloaker"),
@@ -45,6 +47,11 @@ func main() {
 
 	dlog.NewLogger(CLI.Format)
 	dlog.SetLogLevel(CLI.LogLevel)
+	var err error
+	cfg, err = config.New(CLI.ConfigFile)
+	if err != nil {
+		dlog.Warn("Error loading configuration, config file \"%s\"\n", CLI.ConfigFile)
+	}
 
 	var ldLib = os.Getenv("LD_LIBRARY_PRELOAD")
 	if ldLib != "" {
@@ -259,8 +266,7 @@ func main() {
 func scanHiddenFiles() int {
 	if CLI.Scan.WithBuiltinPaths {
 		paths := utils.ExpandPaths(decloaker.DefaultHiddenFilesPaths)
-		cfg, err := config.New("")
-		if err == nil {
+		if cfg != nil {
 			paths = utils.ExpandPaths(cfg.Detection.DefaultHiddenPaths.Files)
 		}
 		CLI.Scan.HiddenFiles.Paths = append(CLI.Scan.HiddenFiles.Paths, paths...)
@@ -278,8 +284,7 @@ func scanHiddenFiles() int {
 func scanHiddenContent() int {
 	if CLI.Scan.WithBuiltinPaths {
 		paths := utils.ExpandPaths(decloaker.DefaultHiddenContentPaths)
-		cfg, err := config.New("")
-		if err == nil {
+		if cfg != nil {
 			paths = utils.ExpandPaths(cfg.Detection.DefaultHiddenPaths.Content)
 		}
 		CLI.Scan.HiddenContent.Paths = append(CLI.Scan.HiddenContent.Paths, paths...)
@@ -295,12 +300,6 @@ func scanHiddenContent() int {
 
 func scanSuspiciousProcs() int {
 	dlog.Info("Looking for suspicious processes\n")
-	cfg, err := config.New(CLI.Scan.SuspiciousProcs.Cfg)
-	if err != nil {
-		dlog.Warn("Invalid configuration: %s\n", err)
-		return decloaker.OK
-	}
-
 	suspicious := decloaker.CheckSuspiciousProcs(cfg)
 	if len(suspicious) == 0 {
 		dlog.Info("no suspicious processes found\n\n")
@@ -339,7 +338,7 @@ func printNetstat() {
 		}
 		if lastProto != s.Proto {
 			lastProto = s.Proto
-			dlog.Log("\n%s -------------------------\n", s.Proto)
+			dlog.Info("\n%s -------------------------\n", s.Proto)
 		}
 
 		dlog.Log("%-12s %-8d %-8d %-8s %6d:%-16s %16s:%-6d %-8s %-8s %-12s\n\tcomm=%s exe=%s\n",
@@ -355,6 +354,11 @@ func printNetstat() {
 			s.Host,
 			s.Comm, s.Exe,
 		)
+		if cfg != nil {
+			if match := cfg.MatchProcess(&s); match != nil {
+				dlog.Detection("\nWARNING: %s\n\n", match.Description)
+			}
+		}
 	}
 	dlog.Log("\n")
 }

@@ -125,7 +125,7 @@ var CLI struct {
 		HiddenLkms struct {
 		} `cmd:"" help:"Look for hidden kernel modules."`
 		SuspiciousProcs struct {
-			Cfg string `optional:"" help:"Configuration file" type:"file"`
+			Cfg string `optional:"" help:"File with suspicious patterns" type:"file"`
 		} `cmd:"" help:"Look for suspicious processes."`
 		HiddenProcs struct {
 			BruteForce bool `short:"b" help:"Try to find processes via brute force."`

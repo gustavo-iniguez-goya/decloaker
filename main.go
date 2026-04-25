@@ -263,6 +263,22 @@ func main() {
 
 // =========================================================================
 
+func getCliConfig(cliConfig string) *config.PatternsConfig {
+	tmpCfg := *cfg
+	if cliConfig == "" {
+		return &tmpCfg
+	}
+	dlog.Info("Using config file %s\n", CLI.Scan.SuspiciousProcs.Cfg)
+	_cfg, err := config.New(CLI.Scan.SuspiciousProcs.Cfg)
+	if err != nil {
+		dlog.Warn("Invalid configuration: %s\n", err)
+	}
+	tmpCfg = *_cfg
+	return &tmpCfg
+}
+
+// =========================================================================
+
 func scanHiddenFiles() int {
 	if CLI.Scan.WithBuiltinPaths {
 		paths := utils.ExpandPaths(decloaker.DefaultHiddenFilesPaths)
@@ -300,7 +316,8 @@ func scanHiddenContent() int {
 
 func scanSuspiciousProcs() int {
 	dlog.Info("Looking for suspicious processes\n")
-	suspicious := decloaker.CheckSuspiciousProcs(cfg)
+	cliCfg := getCliConfig(CLI.Scan.SuspiciousProcs.Cfg)
+	suspicious := decloaker.CheckSuspiciousProcs(cliCfg)
 	if len(suspicious) == 0 {
 		dlog.Info("no suspicious processes found\n\n")
 		return decloaker.OK

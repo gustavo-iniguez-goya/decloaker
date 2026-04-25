@@ -7,34 +7,27 @@ import (
 	"regexp"
 
 	"github.com/gustavo-iniguez-goya/decloaker/data"
+	"github.com/gustavo-iniguez-goya/decloaker/pkg/config/patterns"
 	"gopkg.in/yaml.v3"
 )
 
 var defaultPatternsYAML = data.SuspiciousPatterns
 
-type Severity string
-
+// Common proc status field names
 const (
-	SeverityLow      Severity = "low"
-	SeverityMedium   Severity = "medium"
-	SeverityHigh     Severity = "high"
-	SeverityCritical Severity = "critical"
+	ProcStatusPPid    = "PPid"
+	ProcStatusKthread = "Kthread"
+	ProcStatusUid     = "Uid"
+	ProcStatusGid     = "Gid"
+	ProcStatusVmSize  = "VmSize"
+	ProcStatusThreads = "Threads"
 )
 
-type PatternRule struct {
-	Pattern     string   `yaml:"pattern"`
-	Severity    Severity `yaml:"severity"`
-	Description string   `yaml:"description"`
-	re          *regexp.Regexp
-}
-
-func (r *PatternRule) Match(s string) bool { return r.re != nil && r.re.MatchString(s) }
-
 type UIDRule struct {
-	UID         int      `yaml:"uid"`
-	CommPattern string   `yaml:"comm_pattern"`
-	Severity    Severity `yaml:"severity"`
-	Description string   `yaml:"description"`
+	UID         int               `yaml:"uid"`
+	CommPattern string            `yaml:"comm_pattern"`
+	Severity    patterns.Severity `yaml:"severity"`
+	Description string            `yaml:"description"`
 	re          *regexp.Regexp
 }
 
@@ -75,11 +68,10 @@ type rawConfig struct {
 	Version   int                 `yaml:"version"`
 	Detection fileDetectionConfig `yaml:"detection"`
 	Patterns  struct {
-		ExePaths *[]PatternRule `yaml:"suspicious_exe_paths"`
-		Comm     *[]PatternRule `yaml:"suspicious_comm"`
-		Cmdline  *[]PatternRule `yaml:"suspicious_cmdline"`
-		UID      *[]UIDRule     `yaml:"suspicious_uid"`
-	} `yaml:"process_patterns"`
+		Process    *[]patterns.Pattern `yaml:"process"`
+		Connection *[]patterns.Pattern `yaml:"connection"`
+		File       *[]patterns.Pattern `yaml:"file"`
+	} `yaml:"patterns"`
 	Allowlist *struct {
 		ExePaths  []string `yaml:"exe_paths"`
 		CommNames []string `yaml:"comm_names"`
@@ -113,10 +105,17 @@ type PatternsConfig struct {
 			Content []string
 		}
 	}
-	ExePaths []PatternRule
-	Comm     []PatternRule
-	Cmdline  []PatternRule
+
+	// Legacy pattern fields (for backward compatibility)
+	ExePaths []patterns.PatternRule
+	Comm     []patterns.PatternRule
+	Cmdline  []patterns.PatternRule
 	UID      []UIDRule
+
+	// New recursive patterns
+	ProcessPatterns    []patterns.Pattern
+	ConnectionPatterns []patterns.Pattern
+	FilePatterns       []patterns.Pattern
 
 	Allowlist struct {
 		ExePaths  []string
@@ -132,10 +131,10 @@ type PatternsConfig struct {
 // New builds a PatternsConfig from the embedded default (data/suspis.yaml).
 // If patternsFile is non-empty the file is loaded and merged on top:
 //
-//   - detection.*        : per-field override; absent keys keep the default.
-//   - process_patterns.* : full list replace; if the key is present in the
-//     file the built-in list is discarded entirely.
-//   - allowlist.*        : union; file entries are appended and deduplicated.
+// - detection.* : per-field override; absent keys keep the default.
+// - process_patterns.* : full list replace; if the key is present in the
+//   file the built-in list is discarded entirely.
+// - allowlist.* : union; file entries are appended and deduplicated.
 func New(patternsFile string) (*PatternsConfig, error) {
 	base, err := parseRaw(defaultPatternsYAML, "<embedded default>")
 	if err != nil {
@@ -189,6 +188,7 @@ func mergeRaw(base, override *rawConfig) *rawConfig {
 			base.Detection.BindMounts.Source = bm.Source
 		}
 	}
+
 	if eb := override.Detection.Ebpf; eb != nil {
 		if base.Detection.Ebpf == nil {
 			base.Detection.Ebpf = &struct {
@@ -199,6 +199,7 @@ func mergeRaw(base, override *rawConfig) *rawConfig {
 			base.Detection.Ebpf.Enabled = eb.Enabled
 		}
 	}
+
 	if cg := override.Detection.Cgroups; cg != nil {
 		if base.Detection.Cgroups == nil {
 			base.Detection.Cgroups = &struct {
@@ -217,6 +218,7 @@ func mergeRaw(base, override *rawConfig) *rawConfig {
 			base.Detection.Cgroups.FileSuffix = cg.FileSuffix
 		}
 	}
+
 	if bf := override.Detection.BruteForce; bf != nil {
 		if base.Detection.BruteForce == nil {
 			base.Detection.BruteForce = &struct {
@@ -235,6 +237,7 @@ func mergeRaw(base, override *rawConfig) *rawConfig {
 			base.Detection.BruteForce.PidMin = bf.PidMin
 		}
 	}
+
 	if bf := override.Detection.DefaultHiddenPaths; bf != nil {
 		if base.Detection.DefaultHiddenPaths == nil {
 			base.Detection.DefaultHiddenPaths = &struct {
@@ -250,18 +253,15 @@ func mergeRaw(base, override *rawConfig) *rawConfig {
 		}
 	}
 
-	// --- process_patterns: non-nil = full replace ---
-	if override.Patterns.ExePaths != nil {
-		base.Patterns.ExePaths = override.Patterns.ExePaths
+	// New recursive patterns
+	if override.Patterns.Process != nil {
+		base.Patterns.Process = override.Patterns.Process
 	}
-	if override.Patterns.Comm != nil {
-		base.Patterns.Comm = override.Patterns.Comm
+	if override.Patterns.Connection != nil {
+		base.Patterns.Connection = override.Patterns.Connection
 	}
-	if override.Patterns.Cmdline != nil {
-		base.Patterns.Cmdline = override.Patterns.Cmdline
-	}
-	if override.Patterns.UID != nil {
-		base.Patterns.UID = override.Patterns.UID
+	if override.Patterns.File != nil {
+		base.Patterns.File = override.Patterns.File
 	}
 
 	// --- allowlist: union ---
@@ -290,11 +290,13 @@ func compile(rc *rawConfig) (*PatternsConfig, error) {
 			cfg.Detection.BindMounts.Source = *bm.Source
 		}
 	}
+
 	if eb := rc.Detection.Ebpf; eb != nil {
 		if eb.Enabled != nil {
 			cfg.Detection.Ebpf.Enabled = *eb.Enabled
 		}
 	}
+
 	if cg := rc.Detection.Cgroups; cg != nil {
 		if cg.Enabled != nil {
 			cfg.Detection.Cgroups.Enabled = *cg.Enabled
@@ -306,6 +308,7 @@ func compile(rc *rawConfig) (*PatternsConfig, error) {
 			cfg.Detection.Cgroups.FileSuffix = *cg.FileSuffix
 		}
 	}
+
 	if bf := rc.Detection.BruteForce; bf != nil {
 		if bf.Enabled != nil {
 			cfg.Detection.BruteForce.Enabled = *bf.Enabled
@@ -317,6 +320,7 @@ func compile(rc *rawConfig) (*PatternsConfig, error) {
 			cfg.Detection.BruteForce.PidMin = *bf.PidMin
 		}
 	}
+
 	if bf := rc.Detection.DefaultHiddenPaths; bf != nil {
 		if bf.Files != nil {
 			cfg.Detection.DefaultHiddenPaths.Files = bf.Files
@@ -326,19 +330,15 @@ func compile(rc *rawConfig) (*PatternsConfig, error) {
 		}
 	}
 
-	// pattern lists
 	var err error
-	if cfg.ExePaths, err = compileRules(rc.Patterns.ExePaths); err != nil {
-		return nil, fmt.Errorf("suspicious_exe_paths: %w", err)
+	if cfg.ProcessPatterns, err = compilePatterns(rc.Patterns.Process); err != nil {
+		return nil, fmt.Errorf("process patterns: %w", err)
 	}
-	if cfg.Comm, err = compileRules(rc.Patterns.Comm); err != nil {
-		return nil, fmt.Errorf("suspicious_comm: %w", err)
+	if cfg.ConnectionPatterns, err = compilePatterns(rc.Patterns.Connection); err != nil {
+		return nil, fmt.Errorf("connection patterns: %w", err)
 	}
-	if cfg.Cmdline, err = compileRules(rc.Patterns.Cmdline); err != nil {
-		return nil, fmt.Errorf("suspicious_cmdline: %w", err)
-	}
-	if cfg.UID, err = compileUIDRules(rc.Patterns.UID); err != nil {
-		return nil, fmt.Errorf("suspicious_uid: %w", err)
+	if cfg.FilePatterns, err = compilePatterns(rc.Patterns.File); err != nil {
+		return nil, fmt.Errorf("file patterns: %w", err)
 	}
 
 	// allowlist
@@ -347,6 +347,7 @@ func compile(rc *rawConfig) (*PatternsConfig, error) {
 		cfg.Allowlist.CommNames = al.CommNames
 		cfg.Allowlist.PIDs = al.PIDs
 	}
+
 	for _, p := range cfg.Allowlist.ExePaths {
 		re, err := regexp.Compile(p)
 		if err != nil {
@@ -354,6 +355,7 @@ func compile(rc *rawConfig) (*PatternsConfig, error) {
 		}
 		cfg.allowExeRe = append(cfg.allowExeRe, re)
 	}
+
 	for _, c := range cfg.Allowlist.CommNames {
 		re, err := regexp.Compile(`^` + regexp.QuoteMeta(c) + `$`)
 		if err != nil {
@@ -365,18 +367,18 @@ func compile(rc *rawConfig) (*PatternsConfig, error) {
 	return cfg, nil
 }
 
-func compileRules(rules *[]PatternRule) ([]PatternRule, error) {
+func compileRules(rules *[]patterns.PatternRule) ([]patterns.PatternRule, error) {
 	if rules == nil {
 		return nil, nil
 	}
-	out := make([]PatternRule, len(*rules))
+	out := make([]patterns.PatternRule, len(*rules))
 	for i, r := range *rules {
 		re, err := regexp.Compile(r.Pattern)
 		if err != nil {
 			return nil, fmt.Errorf("pattern %q: %w", r.Pattern, err)
 		}
 		out[i] = r
-		out[i].re = re
+		out[i].Re = re
 	}
 	return out, nil
 }
@@ -393,6 +395,20 @@ func compileUIDRules(rules *[]UIDRule) ([]UIDRule, error) {
 		}
 		out[i] = r
 		out[i].re = re
+	}
+	return out, nil
+}
+
+func compilePatterns(ptList *[]patterns.Pattern) ([]patterns.Pattern, error) {
+	if ptList == nil {
+		return nil, nil
+	}
+	out := make([]patterns.Pattern, len(*ptList))
+	for i, p := range *ptList {
+		if err := p.Compile(); err != nil {
+			return nil, fmt.Errorf("pattern index %d: %w", i, err)
+		}
+		out[i] = p
 	}
 	return out, nil
 }
@@ -424,19 +440,29 @@ func (cfg *PatternsConfig) IsAllowedPID(pid int) bool {
 	return false
 }
 
-func (cfg *PatternsConfig) MatchExe(exe string) *PatternRule {
-	for i := range cfg.ExePaths {
-		if cfg.ExePaths[i].Match(exe) {
-			return &cfg.ExePaths[i]
+// New recursive pattern matching methods
+func (cfg *PatternsConfig) MatchProcess(provider patterns.DataProvider) *patterns.Pattern {
+	for i := range cfg.ProcessPatterns {
+		if cfg.ProcessPatterns[i].Match(provider) {
+			return &cfg.ProcessPatterns[i]
 		}
 	}
 	return nil
 }
 
-func (cfg *PatternsConfig) MatchCmdline(cmdline string) *PatternRule {
-	for i := range cfg.Cmdline {
-		if cfg.Cmdline[i].Match(cmdline) {
-			return &cfg.Cmdline[i]
+func (cfg *PatternsConfig) MatchConnection(provider patterns.DataProvider) *patterns.Pattern {
+	for i := range cfg.ConnectionPatterns {
+		if cfg.ConnectionPatterns[i].Match(provider) {
+			return &cfg.ConnectionPatterns[i]
+		}
+	}
+	return nil
+}
+
+func (cfg *PatternsConfig) MatchFile(provider patterns.DataProvider) *patterns.Pattern {
+	for i := range cfg.FilePatterns {
+		if cfg.FilePatterns[i].Match(provider) {
+			return &cfg.FilePatterns[i]
 		}
 	}
 	return nil

@@ -27,6 +27,7 @@ const (
 	PidPID       = 5
 	PidPPID      = 6
 	PidUID       = 8
+	PidGID       = 9
 
 	ProcPrefix = "/proc/"
 	ProcMounts = "/proc/mounts"
@@ -220,22 +221,14 @@ func CheckSuspiciousProcs(cfg *config.PatternsConfig) map[string]ebpf.Task {
 		// TODO:
 		// - Allow to parse process tree.
 		// - check for history=/dev/null in /proc/<pid>/environ
-		// this is just an example
-		if match := cfg.MatchExe(exe); match != nil {
-			msg = fmt.Sprintf("\tWARNING (%s): %s\n", t.Pid, match.Description)
-			ret = SUSPICIOUS_PROC
-		}
 
 		if len(status) > 0 && strings.Compare(status[PidPPID][1], "2") == 0 {
-			msg = fmt.Sprintf("\tWARNING (%s): ppid == 2?\n", t.Pid)
+			msg = fmt.Sprintf("\t\nWARNING (%s): ppid == 2?\n", t.Pid)
 			ret = SUSPICIOUS_PROC
 		}
 
-		if match := cfg.MatchCmdline(cmdline); match != nil {
-			// TODO
-			//if strings.Compare(status[PidPPID][2], "2") != 0 && strings.Compare(status[PidPPID][2], "0") != 0 && strings.Compare(status[PidUID][2], "0") != 0 {
-
-			msg += fmt.Sprintf("\tWARNING (%s): %s\n", t.Pid, match.Description)
+		if match := cfg.MatchProcess(&t); match != nil {
+			msg += fmt.Sprintf("\t\nWARNING (%s): %s\n", t.Pid, match.Description)
 			ret = SUSPICIOUS_PROC
 		}
 		if ret == SUSPICIOUS_PROC {

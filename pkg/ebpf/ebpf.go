@@ -69,6 +69,34 @@ type Task struct {
 	PPid     string
 }
 
+func (t *Task) Get(field string) (interface{}, bool) {
+	switch field {
+	case "exe":
+		return t.Exe, true
+	case "cmdline":
+		return t.Cmdline, true
+	case "pid":
+		return t.PPid, true
+	case "ppid":
+		return t.PPid, true
+	case "uid":
+		return t.Uid, true
+	case "gid":
+		return t.Gid, true
+	case "comm":
+		return t.Comm, true
+	case "hostname":
+		return t.Hostname, true
+	case "inode":
+		return t.Inode, true
+		//case "maps":
+		//    return t.Maps, true
+		//case "environ":
+		//    return t.Environ, true
+	}
+	return nil, false
+}
+
 type File struct {
 	Exe      string
 	Comm     string
@@ -80,6 +108,33 @@ type File struct {
 	Fd       string
 	Pid      string
 	PPid     string
+}
+
+func (f *File) Get(field string) (interface{}, bool) {
+	switch field {
+	case "exe":
+		return f.Exe, true
+	case "comm":
+		return f.Comm, true
+	case "hostname":
+		return f.Hostname, true
+	case "file", "path":
+		return f.File, true
+	case "uid":
+		return f.Uid, true
+	case "did":
+		return f.Gid, true
+	case "inode":
+		return f.Inode, true
+	case "fd":
+		return f.Fd, true
+	case "pid":
+		return f.Pid, true
+	case "ppid":
+		return f.PPid, true
+	}
+
+	return nil, false
 }
 
 type Kmod struct {

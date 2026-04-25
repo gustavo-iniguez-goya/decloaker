@@ -66,65 +66,131 @@ detection:
       - "/root/*"
       - "/proc/net/*"
 
-
 # --- Per-process attribute patterns (applied to every visible PID) ---
-process_patterns:
+patterns:
+  process:
+  - type: cmdline
+    data_type: regex
+    operand: equals
+    data: "^(\\[|)(kthread|kworker|ksoft|kcompact|kdev|ksoftirqd|kaudit|khung|kdev|kswap|oom_|irq|rcu_|psimon|migration|watchdog|idle)"
+    severity: critical
+    description: "Userspace process impersonating a kernel thread"
+    patterns:
+      - type: ppid
+        data_type: int
+        operand: ">"
+        data: 2
 
-  # Processes with suspicious exe paths
-  suspicious_exe_paths:
-    - pattern: "^/tmp/"
-      severity: high
-      description: "Executable running from /tmp"
-    - pattern: "^/dev/shm/"
-      severity: high
-      description: "Executable running from /dev/shm (in-memory)"
-    - pattern: "^/run/user/"
-      severity: medium
-      description: "Executable running from user runtime dir"
-    - pattern: "^/memfd"
-      severity: high
-      description: "Executable fileless"
-    - pattern: "^/proc"
-      severity: high
-      description: "Executable launched from /proc (such as a file descriptor)"
-    #- pattern: "(deleted)$"
-    #  severity: high
-    #  description: "Executable has been deleted from disk (fileless malware pattern)"
+  - type: cmdline
+    data: "^\\/dev\\/(tcp|udp)"
+    data_type: string
+    operand: contains
+    severity: critical
+    description: "Bash /dev/tcp|udp redirection (reverse shell)"
 
-  # Suspicious comm names (the 15-char kernel name in /proc/<pid>/comm)
-  suspicious_comm:
-    - pattern: "^(kthread|kworker|ksoft|kcompact|kdev|ksoftirqd|kaudit|khung|kdev|kswap|oom_|irq|rcu_|psimon|migration|watchdog|idle)"
-      severity: critical
-      description: "Userspace process impersonating a kernel thread name"
-    - pattern: "^\\."
-      severity: medium
-      description: "Process comm starts with a dot (hidden name)"
-    - pattern: "\\s"
-      severity: medium
-      description: "Process comm contains whitespace"
+  # common reverse shells
+  - type: cmdline
+    data: "python(2|2\\.[1-9]|3|3\\.[1-9]|) -c.*import.*socket.*AF_INET"
+    data_type: regex
+    operand: equals
+    severity: critical
+    description: "python reverse shell"
 
-  # Suspicious cmdline patterns
-  suspicious_cmdline:
-    - pattern: "(\\[|)(kthread|kworker|ksoft|kcompact|kdev|ksoftirqd|kaudit|khung|kdev|kswap|oom_|irq|rcu_|psimon|migration|watchdog|idle)"
-      severity: critical
-      description: "Userspace process impersonating a kernel thread"
-    - pattern: "/dev/tcp/"
-      severity: critical
-      description: "Bash /dev/tcp redirection (reverse shell)"
-    - pattern: "base64\\s+--decode|base64\\s+-d"
-      severity: high
-      description: "In-flight base64 decode (obfuscated payload)"
-    - pattern: "python.*-c|perl.*-e|ruby.*-e"
-      severity: medium
-      description: "Interpreter one-liner"
+  - type: cmdline
+    data: "ruby -rsocket -e"
+    data_type: regex
+    operand: equals
+    severity: critical
+    description: "ruby reverse shell"
 
-  # UID/GID anomalies (JSON-style numeric comparisons aren't great in YAML;
-  # use string patterns or add a separate 'uid_rules' block below)
-  suspicious_uid:
-    #- uid: 0
-    #  comm_pattern: "^(?!systemd|init|kthread|kworker)"
-    #  severity: high
-    #  description: "Root process with unexpected comm name"
+  - type: cmdline
+    data: "nc.*(-e|-c).*sh"
+    data_type: regex
+    operand: equals
+    severity: critical
+    description: "netcat reverse shell"
+
+  - type: cmdline
+    data: "openssl s_client.*(-quiet|-connect)"
+    data_type: regex
+    operand: equals
+    severity: critical
+    description: "OpenSSL reverse shell"
+
+  - type: cmdline
+    data: "awk.*\\/inet\\/(udp|tcp)"
+    data_type: regex
+    operand: equals
+    severity: critical
+    description: "awk reverse shell"
+
+  - type: cmdline
+    data: "new Socket.*(getInputStream|getErrorStream|getOutputStream)"
+    data_type: regex
+    operand: equals
+    severity: critical
+    description: "java reverse shell"
+
+  - type: cmdline
+    data: "lua -e.*require('socket')"
+    data_type: regex
+    operand: equals
+    severity: critical
+    description: "lua reverse shell"
+
+  - type: cmdline
+    data: "perl -e.*(use Socket|new IO::Socket)"
+    data_type: regex
+    operand: equals
+    severity: critical
+    description: "perl reverse shell"
+
+  - type: cmdline
+    data: "socat.*(FILE|TCP-CONNECT|TCP-LISTEN|EXEC|TCP):"
+    data_type: regex
+    operand: equals
+    severity: critical
+    description: "socat reverse shell"
+
+  # paths suspicious patterns
+  - type: exe
+    data: "ld-linux"
+    data_type: string
+    operand: contains
+    severity: high
+    description: "libc dynamic linker/loader used to execute a process (man ld-linux.so)"
+  - type: exe
+    data: "^(\\/tmp/|\\/dev\\/shm|\\/var\\/tmp|\\/run)"
+    data_type: regex
+    operand: equal
+    severity: high
+    description: "Executable running from temporary directories"
+  - type: exe
+    data: "^\\/memfd"
+    data_type: regex
+    operand: equal
+    severity: high
+    description: "Executable running from memory (/memfd)"
+  - type: exe
+    data: "^/proc"
+    data_type: regex
+    operand: equal
+    severity: high
+    description: "Executable launched from /proc (such as a file descriptor)"
+
+  # process names suspicious patterns
+  - type: comm
+    data: "^\\."
+    data_type: regex
+    operand: equal
+    severity: medium
+    description: "Process comm starts with a dot (hidden name)"
+  - type: comm
+    data: ""
+    data_type: string
+    operand: equal
+    severity: medium
+    description: "Process name (comm) empty (??)"
 
 # --- Allowlist: never flag these even if they match above patterns ---
 allowlist:

@@ -198,18 +198,16 @@ func CheckSuspiciousProcs(cfg *config.PatternsConfig) map[string]ebpf.Task {
 	suspicious := make(map[string]ebpf.Task)
 
 	liveTasks := ebpf.GetPidList("")
+	if len(liveTasks) == 0 {
+		log.Info("0 processes returned from kernel (is eBPF working? REVIEW)\n")
+		return suspicious
+	}
+
 	for _, t := range liveTasks {
 		ret = OK
-		status, bin, _ := getPidInfo(fmt.Sprint(ProcPrefix, t.Pid))
+		status, _, _ := getPidInfo(fmt.Sprint(ProcPrefix, t.Pid))
 
 		msg := ""
-		exe := ""
-		if t.Exe != "" {
-			exe = t.Exe
-		} else {
-			exe = bin
-		}
-
 		cline, err := os.ReadFile(ProcPrefix + t.Pid + "/cmdline")
 		if err != nil {
 			log.Debug("CheckSuspiciousProcs, unable to read cmdline: %s, %s", t.Pid, t.Comm)
@@ -325,16 +323,18 @@ func CheckHiddenProcsCgroups(nlTasks *taskstats.Client, expected map[string]os.F
 			spid, _ := strconv.Atoi(pid)
 			pidStats, _ := nlTasks.PID(spid)
 			comm := utils.IntSliceToString(pidStats.Comm, "")
-			log.Log("\tComm: %s\n\tPID: %d, PPID: %d, TGID: %d, UID: %d, GID: %d, Dev: %d, Inode: %d\n",
-				comm,
-				pidStats.PID,
-				pidStats.PPID,
-				pidStats.TGID,
-				pidStats.UID,
-				pidStats.GID,
-				pidStats.ExeDev,
-				pidStats.ExeInode,
-			)
+			if pidStats != nil {
+				log.Log("\tComm: %s\n\tPID: %d, PPID: %d, TGID: %d, UID: %d, GID: %d, Dev: %d, Inode: %d\n",
+					comm,
+					pidStats.PID,
+					pidStats.PPID,
+					pidStats.TGID,
+					pidStats.UID,
+					pidStats.GID,
+					pidStats.ExeDev,
+					pidStats.ExeInode,
+				)
+			}
 		}
 	}
 

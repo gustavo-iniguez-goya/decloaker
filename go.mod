@@ -9,6 +9,7 @@ require (
 	github.com/gustavo-iniguez-goya/go-diskfs v0.0.0-20260422185349-cbbe601c7a36
 	github.com/vishvananda/netlink v1.3.1
 	golang.org/x/sys v0.39.0
+	gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c
 )
 
 require (
@@ -35,3 +36,5 @@ require (
 	github.com/ulikunitz/xz v0.5.15 // indirect
 	github.com/vishvananda/netns v0.0.5 // indirect
 )
+
+//replace github.com/gustavo-iniguez-goya/go-diskfs v0.0.0 => ./go-diskfs2/

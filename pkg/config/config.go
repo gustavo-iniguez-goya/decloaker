@@ -136,23 +136,24 @@ type PatternsConfig struct {
 //   file the built-in list is discarded entirely.
 // - allowlist.* : union; file entries are appended and deduplicated.
 func New(patternsFile string) (*PatternsConfig, error) {
-	base, err := parseRaw(defaultPatternsYAML, "<embedded default>")
-	if err != nil {
-		return nil, err
-	}
 
 	if patternsFile != "" {
 		data, err := os.ReadFile(patternsFile)
 		if err != nil {
 			return nil, fmt.Errorf("reading patterns file %q: %w", patternsFile, err)
 		}
-		override, err := parseRaw(data, patternsFile)
+		base, err := parseRaw(data, patternsFile)
 		if err != nil {
 			return nil, err
 		}
-		base = mergeRaw(base, override)
+		//base = mergeRaw(base, override)
+		return compile(base)
 	}
 
+	base, err := parseRaw(defaultPatternsYAML, "<embedded default>")
+	if err != nil {
+		return nil, err
+	}
 	return compile(base)
 }
 

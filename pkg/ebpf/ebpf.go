@@ -76,7 +76,7 @@ func (t *Task) Get(field string) (interface{}, bool) {
 	case "cmdline":
 		return t.Cmdline, true
 	case "pid":
-		return t.PPid, true
+		return t.Pid, true
 	case "ppid":
 		return t.PPid, true
 	case "uid":

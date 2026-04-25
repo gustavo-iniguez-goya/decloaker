@@ -26,6 +26,40 @@ type Socket struct {
 	Pid    string
 }
 
+func (s *Socket) Get(field string) (interface{}, bool) {
+	switch field {
+	case "exe":
+		return s.Exe, true
+	case "comm":
+		return s.Comm, true
+	case "pid":
+		return s.Pid, true
+	case "ppid":
+		return s.Ppid, true
+	case "uid":
+		return s.Conn.UID, true
+	case "hostname":
+		return s.Host, true
+	case "ifname":
+		return s.Ifname, true
+	case "inode":
+		return s.Conn.INode, true
+	case "src_port":
+		return s.Conn.ID.SourcePort, true
+	case "dst_port":
+		return s.Conn.ID.DestinationPort, true
+	case "src_ip":
+		return s.Conn.ID.Source, true
+	case "dst_ip":
+		return s.Conn.ID.Destination, true
+		//case "maps":
+		//    return t.Maps, true
+		//case "environ":
+		//    return t.Environ, true
+	}
+	return nil, false
+}
+
 type Protos struct {
 	Proto uint8
 	Fam   uint8
@@ -183,9 +217,9 @@ func Conntrack() {
 			log.Error("table: %d, fam: %d, err: %v\n", tbl, family, err)
 			continue
 		}
-		log.Log("---------------------------------- %d, %d -----------------------------------\n\n", tbl, family)
+		log.Log("---------------------------------- %d, %d -----------------------------------\n", tbl, family)
 		for _, entry := range conns {
-			log.Log("%s\n\n", entry)
+			log.Log("%s\n", entry)
 		}
 	}
 

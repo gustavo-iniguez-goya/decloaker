@@ -107,7 +107,7 @@ var CLI struct {
 			Paths     []string `arg:"" help:"Paths to read." required:"" name:"paths"`
 			Name      string   `short:"n" help:"Find files with this pattern."`
 			Inode     uint64   `short:"i" help:"Look for this inode."`
-			Recursive bool     `short:"r" help:"Enable deep scanning."`
+			Recursive bool     `short:"r" default:"true" help:"Enable deep scanning."`
 		} `cmd:"" help:"Find files in a disk device."`
 	} `cmd:"" help:"Read files directly from the disk device."`
 

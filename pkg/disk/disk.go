@@ -311,23 +311,17 @@ func Rm(dev string, partition int, paths []string, openMode diskfs.OpenModeOptio
 		return fmt.Errorf("unable to read disk partition %s, %d, %s", dev, partition, err)
 	}
 
-	ext4fs, ok := fs.(*ext4.FileSystem)
-	if !ok {
-		return fmt.Errorf("%s, partition %d, is not a ext4 filesystem", dev, partition)
-	}
-	defer ext4fs.Close()
-
 	var er error
+	var err_paths string
 	for _, p := range paths {
-		log.Info("removing %s: ", p)
-		err := ext4fs.Remove(p)
+		err := fs.Remove(p)
 		if err != nil {
+			err_paths = err_paths + " " + p
 			er = err
-			log.Log("%s (verify that the path is a ext4 filesystem)\n", err)
 		}
 	}
 	if er != nil {
-		er = fmt.Errorf("unable to copy some paths")
+		err = fmt.Errorf("unable to copy the following paths:\n%s\n", err_paths)
 	}
 
 	return err

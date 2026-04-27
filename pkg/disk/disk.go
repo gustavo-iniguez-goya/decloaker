@@ -18,9 +18,17 @@ import (
 	"github.com/gustavo-iniguez-goya/go-diskfs/filesystem/ext4"
 )
 
+func getPathSeparator(path string) string {
+	if path == "/" {
+		return ""
+	}
+
+	return "/"
+}
+
 // https://pkg.go.dev/io/fs#ValidPath
-func trimPath(path string) string {
-	// when replacing / by ., we ended up adding ./ to the path.
+func normalizePath(path string) string {
+	// when replacing / by ., we end up adding ./ to the path.
 	// we need to delete this prefix before passing it to WalkPath()
 	if strings.HasPrefix(path, "./") {
 		return strings.Replace(path, "./", "", 1)
@@ -54,26 +62,39 @@ func parseEntries(path string, entries []iofs.DirEntry, inode uint64, search str
 		if search == "" {
 			continue
 		}
-		matched, err := filepath.Match(search, e.Name())
+		tmpPath := strings.ReplaceAll(pth, "/", "")
+		matched, err := filepath.Match(search, tmpPath)
 		if err != nil {
 			log.Error("file pattern error: %s\n", err)
-			return
+			continue
 		}
 		if matched {
 			matchCb(utils.ToAscii(pth), e)
 			continue
 		}
 	}
+
+	tmpPath := strings.ReplaceAll(path, "/", "")
+	matched, err := filepath.Match(search, tmpPath)
+	if err != nil {
+		log.Error("file pattern error: %s\n", err)
+		return
+	}
+	if matched {
+		matchCb(utils.ToAscii(path), nil)
+	}
+
 }
 
 func WalkPath(fs filesystem.FileSystem, path string, sep string, callback func(string, []iofs.DirEntry)) error {
-	path = trimPath(path)
+	path = normalizePath(path)
 	log.Trace("walking dir %s\n", path)
 	entries, err := fs.ReadDir(path)
 	if err != nil {
 		log.Trace("WalkPath.ReadDir() error: %s\n", err)
 		return err
 	}
+
 	callback(path, entries)
 
 	for _, e := range entries {
@@ -92,7 +113,7 @@ func WalkPath(fs filesystem.FileSystem, path string, sep string, callback func(s
 
 func Find(dev string, partition int, path string, inode uint64, search string, openMode diskfs.OpenModeOption, recursive bool) map[string]os.FileInfo {
 	log.Debug("Find, dev=%s, partition=%d, path=%s, inode=%d, search=%s, recursive:%v\n", dev, partition, path, inode, search, recursive)
-	tempPath := trimPath(path)
+	tempPath := normalizePath(path)
 	log.Trace("Opening path %s\n", tempPath)
 
 	list := make(map[string]os.FileInfo)
@@ -140,12 +161,16 @@ func Find(dev string, partition int, path string, inode uint64, search string, o
 
 	WalkPath(fs, tempPath, "",
 		func(dir string, entries []iofs.DirEntry) {
-			log.Debug("reading path %s\n", dir)
+			log.Debug("\n/%s:\n", dir)
 			parseEntries(dir, entries, inode, search,
-				func(path string, e iofs.DirEntry) {
+				func(p string, e iofs.DirEntry) {
 					log.Debug("Find, walked path: %s\n", path)
+					if e == nil {
+						list[p] = nil
+						return
+					}
 					info, _ := e.Info()
-					list[path] = info
+					list[p] = info
 				})
 		})
 	if err != nil {
@@ -158,7 +183,8 @@ func Find(dev string, partition int, path string, inode uint64, search string, o
 // functions to read files directly from the disk device.
 
 func ReadDir(dev string, partition int, path string, openMode diskfs.OpenModeOption, recursive bool) map[string]os.FileInfo {
-	tempPath := trimPath(path)
+	tempPath := normalizePath(path)
+	pathSeparator := getPathSeparator(path)
 	list := make(map[string]os.FileInfo)
 	disk, err := diskfs.Open(
 		dev,
@@ -183,7 +209,7 @@ func ReadDir(dev string, partition int, path string, openMode diskfs.OpenModeOpt
 		return list
 	}
 	if !stat.IsDir() {
-		list[utils.ToAscii("/"+path)] = stat
+		list[utils.ToAscii(pathSeparator+path)] = stat
 		return list
 	}
 	if !recursive {
@@ -201,19 +227,19 @@ func ReadDir(dev string, partition int, path string, openMode diskfs.OpenModeOpt
 				log.Warn("Unable to stat %s? review needed", path)
 			}
 
-			list[utils.ToAscii(path+"/"+e.Name())] = stat
+			list[utils.ToAscii(e.Name())] = stat
 		}
 		return list
 	}
 
 	WalkPath(fs, path, "",
 		func(dir string, entries []iofs.DirEntry) {
-			log.Debug("reading path %s\n", dir)
+			log.Log("\n/%s:\n", dir)
 			for _, e := range entries {
 				if e.Name() == "." || e.Name() == ".." {
 					continue
 				}
-				p := utils.ToAscii(dir + "/" + e.Name())
+				p := utils.ToAscii(e.Name())
 				info, _ := e.Info()
 				list[p] = info
 				log.Log("%v\t%d\t%s\t%s\n", info.Mode(), info.Size(), info.ModTime().Format(time.RFC3339), info.Name())

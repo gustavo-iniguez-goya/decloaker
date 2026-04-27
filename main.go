@@ -117,8 +117,6 @@ func main() {
 		ret = decloaker.CheckHiddenProcs(CLI.Scan.HiddenProcs.BruteForce, CLI.Scan.HiddenProcs.MaxPid)
 	case "scan suspicious-procs":
 		ret = scanSuspiciousProcs()
-	case "scan procs":
-		ret = scanProcs()
 	case "scan hidden-sockets <protos>":
 		ret = decloaker.CheckHiddenSockets(CLI.Scan.HiddenSockets.Protos)
 	case "scan hidden-sockets":
@@ -426,19 +424,6 @@ func dumpFiles() {
 			f.Hostname,
 			f.Comm, f.File, f.Exe,
 		)
-		dlog.Event("dump_file", "open file descriptor",
-			dlog.F{
-				"pid":      f.Pid,
-				"ppid":     f.PPid,
-				"fd":       f.Fd,
-				"inode":    f.Inode,
-				"uid":      f.Uid,
-				"gid":      f.Gid,
-				"hostname": f.Hostname,
-				"comm":     f.Comm,
-				"file":     f.File,
-				"exe":      f.Exe,
-			})
 	}
 }
 
@@ -454,14 +439,6 @@ func dumpKmods() {
 			k.Addr,
 			k.Func,
 		)
-		dlog.Event("dump_kmod", "loaded kernel module",
-			dlog.F{
-				"name":   k.Name,
-				"type":   k.Type,
-				"symbol": k.AType,
-				"addr":   k.Addr,
-				"func":   k.Func,
-			})
 	}
 }
 
@@ -477,16 +454,5 @@ func dumpTasks() {
 			t.Hostname,
 			t.Comm, t.Exe,
 		)
-		dlog.Event("dump_task", "running task",
-			dlog.F{
-				"pid":      t.Pid,
-				"ppid":     t.PPid,
-				"inode":    t.Inode,
-				"uid":      t.Uid,
-				"gid":      t.Gid,
-				"hostname": t.Hostname,
-				"comm":     t.Comm,
-				"exe":      t.Exe,
-			})
 	}
 }

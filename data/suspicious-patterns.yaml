@@ -104,7 +104,7 @@ patterns:
     description: "ruby reverse shell"
 
   - type: cmdline
-    data: "nc.*(-e|-c).*sh"
+    data: "\\/(s|)bin\\/nc.*(-e|-c).*sh"
     data_type: regex
     operand: equals
     severity: critical

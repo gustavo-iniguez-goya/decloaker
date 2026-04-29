@@ -11,7 +11,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-var defaultPatternsYAML = data.SuspiciousPatterns
+var defaultPatternsYAML = data.DefaultConfig
 
 // Common proc status field names
 const (

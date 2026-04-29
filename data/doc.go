@@ -4,6 +4,6 @@ import (
 	_ "embed"
 )
 
-//go:embed suspicious-patterns.yaml
+//go:embed default-config.yaml
 // this line must go here
-var SuspiciousPatterns []byte
+var DefaultConfig []byte

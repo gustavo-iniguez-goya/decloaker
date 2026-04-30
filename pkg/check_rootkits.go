@@ -66,6 +66,17 @@ func CheckHiddenLKM() int {
 	return OK
 }
 
+func hiddenFromProc(procModules []byte, msg, kmod string) int {
+	if !bytes.Contains(procModules, []byte(kmod)) {
+		log.Event(log.DETECTION, log.CatHiddenKmod, msg,
+			[]log.Fields{
+				{Key: "kmod", Value: kmod},
+			})
+		return KMOD_HIDDEN
+	}
+	return OK
+}
+
 func CheckTainted() bool {
 	log.Info("Checking kernel integrity\n")
 
@@ -125,20 +136,13 @@ func CheckProcModules(tainted bool) int {
 		kmodList[k.Name()] = k
 
 		hiddenFrom := []string{}
-		if !bytes.Contains(procModules, []byte(k.Name())) {
-			log.Event(log.DETECTION, log.CatHiddenKmod, "\n\tWARNING: \"%s\" kmod HIDDEN from /proc/modules\n\n",
-				[]log.Fields{
-					{Key: "kmod", Value: k.Name()},
-				})
+		if hiddenFromProc(procModules, "\n\tWARNING: \"%s\" kmod HIDDEN from /proc/modules\n", k.Name()) != OK {
 			hiddenFrom = append(hiddenFrom, ProcModules)
 			ret = KMOD_HIDDEN
 		}
-		if !bytes.Contains(procKallsyms, []byte(k.Name())) {
-			log.Event(log.DETECTION, log.CatHiddenKmod, "\n\tWARNING: \"%s\" kmod HIDDEN from /proc/kallsyms\n\n",
-				[]log.Fields{
-					{Key: "kmod", Value: k.Name()},
-				})
+		if hiddenFromProc(procKallsyms, "\n\tWARNING: \"%s\" kmod HIDDEN from /proc/kallsyms\n", k.Name()) != OK {
 			hiddenFrom = append(hiddenFrom, ProcKallsyms)
+			ret = KMOD_HIDDEN
 		}
 		if len(hiddenFrom) > 0 {
 			ret = KMOD_HIDDEN
@@ -161,21 +165,14 @@ func CheckProcModules(tainted bool) int {
 			hiddenFrom = append(hiddenFrom, SysModule)
 			ret = KMOD_HIDDEN
 		}
-		if !bytes.Contains(procModules, []byte(kname)) {
-			log.Event(log.DETECTION, log.CatHiddenKmod, "\n\tWARNING (eBPF): \"%s\" kmod HIDDEN from /proc/modules\n",
-				[]log.Fields{
-					{Key: "kmod", Value: kname},
-				})
+		if hiddenFromProc(procModules, "\n\tWARNING (eBPF): \"%s\" kmod HIDDEN from /proc/modules\n", kname) != OK {
 			log.Log("\t%q\n", kmod)
 			hiddenFrom = append(hiddenFrom, ProcModules)
 			ret = KMOD_HIDDEN
 		}
-		if !bytes.Contains(procKallsyms, []byte(kname)) {
-			log.Event(log.DETECTION, log.CatHiddenKmod, "\n\tWARNING (eBPF): \"%s\" kmod HIDDEN from /proc/kallsyms\n",
-				[]log.Fields{
-					{Key: "kmod", Value: kname},
-				})
+		if hiddenFromProc(procKallsyms, "\n\tWARNING (eBPF): \"%s\" kmod HIDDEN from /proc/kallsyms\n", kname) != OK {
 			hiddenFrom = append(hiddenFrom, ProcKallsyms)
+			ret = KMOD_HIDDEN
 		}
 
 		if len(hiddenFrom) > 0 {
@@ -233,20 +230,12 @@ func CheckTracingModules() int {
 
 			log.Debug(" checking %s\n", ProcModules)
 			hiddenFrom := []string{}
-			if !bytes.Contains(procModules, []byte(k[1])) {
-				log.Event(log.DETECTION, log.CatHiddenKmod, "\tWARNING (tracing): possible kmod hidden from /proc/modules: %v\n",
-					[]log.Fields{
-						{Key: "kmod", Value: k[1]},
-					})
+			if hiddenFromProc(procModules, "\tWARNING (tracing): possible kmod hidden from /proc/modules: %v\n", k[1]) != OK {
 				kmodList[k[1]] = struct{}{}
 				hiddenFrom = append(hiddenFrom, ProcModules)
 			}
 			log.Debug(" checking %s\n", ProcKallsyms)
-			if !bytes.Contains(procKallsyms, []byte(k[1])) {
-				log.Event(log.DETECTION, log.CatHiddenKmod, "\tWARNING (tracing): possible kmod hidden from /proc/kallsyms: %v\n",
-					[]log.Fields{
-						{Key: "kmod", Value: k[1]},
-					})
+			if hiddenFromProc(procKallsyms, "\tWARNING (tracing): possible kmod hidden from /proc/kallsyms: %v\n", k[1]) != OK {
 				kmodList[k[1]] = struct{}{}
 				hiddenFrom = append(hiddenFrom, ProcKallsyms)
 			}

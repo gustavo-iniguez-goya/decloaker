@@ -2,6 +2,7 @@ package decloaker
 
 import (
 	"bytes"
+	"fmt"
 	"io/fs"
 	"io/ioutil"
 	"os"
@@ -17,6 +18,12 @@ type taintT struct {
 	letter string
 	reason string
 }
+
+const (
+	ProcKallsyms = "/proc/kallsyms"
+	ProcModules  = "/proc/modules"
+	SysModule    = "/sys/module/"
+)
 
 var (
 	taint_values = map[int]taintT{
@@ -70,12 +77,16 @@ func CheckTainted() bool {
 		return tainted
 	}
 
-	log.Detection("WARNING: kernel tainted\n")
+	log.Detection("\nWARNING: kernel tainted\n")
 	for bit, t := range taint_values {
 		mask := 1 << bit
 		if value&mask != 0 {
 			tainted = true
-			log.Log("\t(%s) %s\n", t.letter, t.reason)
+			log.Event(log.DETECTION, "kernel_taint", "\t(%s) %s\n",
+				[]log.Fields{
+					{Key: "letter", Value: t.letter},
+					{Key: "reason", Value: t.reason},
+				})
 		}
 	}
 	log.Log("\n")
@@ -90,52 +101,89 @@ func CheckProcModules(tainted bool) int {
 	tainted_kmods := false
 	ret := OK
 	kmodList := make(map[string]fs.DirEntry)
-	procModules, _ := ioutil.ReadFile("/proc/modules")
-	procKallsyms, _ := ioutil.ReadFile("/proc/kallsyms")
+	procModules, _ := ioutil.ReadFile(ProcModules)
+	procKallsyms, _ := ioutil.ReadFile(ProcKallsyms)
 	ksymList := ebpf.GetKmodList()
 
-	kmods, _ := os.ReadDir("/sys/module")
+	kmods, _ := os.ReadDir(SysModule)
 	for _, k := range kmods {
-		rktPath := "/sys/module/" + k.Name() + "/taint"
+		rktPath := SysModule + k.Name() + "/taint"
 		log.Debug("checking kmod %s\n", rktPath)
 
 		tainted, _ := os.ReadFile(rktPath)
 		tainted = bytes.Trim(tainted, " \t\n")
 		taintFlags := bytes.Trim(tainted, " \t\n")
-		if !bytes.Equal(taintFlags, []byte("")) {
-			tainted_kmods = true
-			log.Detection("tainted: %s, %s\n", k, tainted)
-			kmodList[k.Name()] = k
-			if !bytes.Contains(procModules, []byte(k.Name())) {
-				log.Detection("\n\tWARNING: \"%s\" kmod HIDDEN from /proc/modules\n\n", k.Name())
-				ret = KMOD_HIDDEN
-			}
-			if !bytes.Contains(procKallsyms, []byte(k.Name())) {
-				log.Detection("\n\tWARNING: \"%s\" kmod HIDDEN from /proc/kallsyms\n\n", k.Name())
-				ret = KMOD_HIDDEN
-			}
+		if bytes.Equal(taintFlags, []byte("")) {
+			continue
 		}
+		tainted_kmods = true
+		log.Event(log.DETECTION, "kernel_tainted", "tainted: %s, %s\n",
+			[]log.Fields{
+				{Key: "kmod", Value: fmt.Sprintf("%s", k)},
+				{Key: "flags", Value: fmt.Sprintf("%s", tainted)},
+			})
+		kmodList[k.Name()] = k
+
+		hiddenFrom := []string{}
+		if !bytes.Contains(procModules, []byte(k.Name())) {
+			log.Event(log.DETECTION, log.CatHiddenKmod, "\n\tWARNING: \"%s\" kmod HIDDEN from /proc/modules\n\n",
+				[]log.Fields{
+					{Key: "kmod", Value: k.Name()},
+				})
+			hiddenFrom = append(hiddenFrom, ProcModules)
+			ret = KMOD_HIDDEN
+		}
+		if !bytes.Contains(procKallsyms, []byte(k.Name())) {
+			log.Event(log.DETECTION, log.CatHiddenKmod, "\n\tWARNING: \"%s\" kmod HIDDEN from /proc/kallsyms\n\n",
+				[]log.Fields{
+					{Key: "kmod", Value: k.Name()},
+				})
+			hiddenFrom = append(hiddenFrom, ProcKallsyms)
+		}
+		if len(hiddenFrom) > 0 {
+			ret = KMOD_HIDDEN
+		}
+
 	}
+
 	for kname, kmod := range ksymList {
 		if kmod.Type != "MOD" && kmod.Type != "FTRACE_MOD" {
 			continue
 		}
-		if !utils.Exists("/sys/module/" + kname) {
-			log.Detection("\n\tWARNING (eBPF): \"%s\" kmod HIDDEN from /sys/module\n", kname)
+
+		hiddenFrom := []string{}
+		if !utils.Exists(SysModule + kname) {
+			log.Event(log.DETECTION, log.CatHiddenKmod, "\n\tWARNING (eBPF): \"%s\" kmod HIDDEN from /sys/module\n",
+				[]log.Fields{
+					{Key: "kmod", Value: kname},
+				})
 			log.Log("\t%q\n", kmod)
+			hiddenFrom = append(hiddenFrom, SysModule)
 			ret = KMOD_HIDDEN
 		}
 		if !bytes.Contains(procModules, []byte(kname)) {
-			log.Detection("\n\tWARNING (eBPF): \"%s\" kmod HIDDEN from /proc/modules\n", kname)
+			log.Event(log.DETECTION, log.CatHiddenKmod, "\n\tWARNING (eBPF): \"%s\" kmod HIDDEN from /proc/modules\n",
+				[]log.Fields{
+					{Key: "kmod", Value: kname},
+				})
 			log.Log("\t%q\n", kmod)
+			hiddenFrom = append(hiddenFrom, ProcModules)
 			ret = KMOD_HIDDEN
 		}
 		if !bytes.Contains(procKallsyms, []byte(kname)) {
-			log.Detection("\n\tWARNING (eBPF): \"%s\" kmod HIDDEN from /proc/kallsyms\n", kname)
+			log.Event(log.DETECTION, log.CatHiddenKmod, "\n\tWARNING (eBPF): \"%s\" kmod HIDDEN from /proc/kallsyms\n",
+				[]log.Fields{
+					{Key: "kmod", Value: kname},
+				})
+			hiddenFrom = append(hiddenFrom, ProcKallsyms)
+		}
+
+		if len(hiddenFrom) > 0 {
 			log.Log("\t%q\n", kmod)
 			ret = KMOD_HIDDEN
 		}
 	}
+
 	if ret != OK {
 		log.Log("\n")
 	}
@@ -152,8 +200,8 @@ func CheckTracingModules() int {
 	log.Info("Checking kernel modules hooks\n")
 
 	ret := OK
-	procModules, _ := ioutil.ReadFile("/proc/modules")
-	procKallsyms, _ := ioutil.ReadFile("/proc/kallsyms")
+	procModules, _ := ioutil.ReadFile(ProcModules)
+	procKallsyms, _ := ioutil.ReadFile(ProcKallsyms)
 	kmodList := make(map[string]struct{})
 
 	monitorPaths := []string{
@@ -183,23 +231,40 @@ func CheckTracingModules() int {
 			}
 			log.Debug(" analyzing kmod: %s\n", k[1])
 
-			log.Debug(" checking %s in /proc/modules\n")
+			log.Debug(" checking %s\n", ProcModules)
+			hiddenFrom := []string{}
 			if !bytes.Contains(procModules, []byte(k[1])) {
-				log.Detection("\tWARNING (tracing): possible kmod hidden from /proc/modules: %v\n", k[1])
+				log.Event(log.DETECTION, log.CatHiddenKmod, "\tWARNING (tracing): possible kmod hidden from /proc/modules: %v\n",
+					[]log.Fields{
+						{Key: "kmod", Value: k[1]},
+					})
 				kmodList[k[1]] = struct{}{}
+				hiddenFrom = append(hiddenFrom, ProcModules)
 			}
-			log.Debug(" checking /proc/kallsyms\n")
+			log.Debug(" checking %s\n", ProcKallsyms)
 			if !bytes.Contains(procKallsyms, []byte(k[1])) {
-				log.Detection("\tWARNING (tracing): possible kmod hidden from /proc/kallsyms: %v\n", k[1])
+				log.Event(log.DETECTION, log.CatHiddenKmod, "\tWARNING (tracing): possible kmod hidden from /proc/kallsyms: %v\n",
+					[]log.Fields{
+						{Key: "kmod", Value: k[1]},
+					})
 				kmodList[k[1]] = struct{}{}
+				hiddenFrom = append(hiddenFrom, ProcKallsyms)
 			}
-			log.Debug(" checking /sys/module/%s\n", k[1])
-			if !utils.Exists("/sys/module/" + k[1]) {
-				log.Detection("\tWARNING (tracing): possible kmod hidden from /sys/module: %v\n", k[1])
+			log.Debug(" checking %s%s\n", SysModule, k[1])
+			if !utils.Exists(SysModule + k[1]) {
+				log.Event(log.DETECTION, log.CatHiddenKmod, "\tWARNING (tracing): possible kmod hidden from /sys/module: %v\n",
+					[]log.Fields{
+						{Key: "kmod", Value: k[1]},
+					})
+				hiddenFrom = append(hiddenFrom, SysModule)
+			}
+
+			if len(hiddenFrom) > 0 {
 				kmodList[k[1]] = struct{}{}
 			}
 		}
 	}
+
 	if len(kmodList) > 0 {
 		log.Log("\n")
 		ret = KMOD_HIDDEN

@@ -26,6 +26,22 @@ const (
 	QUIET     = slog.LevelError + 9000
 )
 
+const (
+	CatDumpTasks = "dump_tasks"
+	CatDumpFiles = "dump_files"
+	CatDumpKmods = "dump_kmods"
+)
+
+// Fields is an alias for structured fields attached to an Event.
+type Fields struct {
+	Key   string
+	Value any
+}
+
+// F is a convenience alias for a map of structured fields attached to an Event.
+// Usage: log.F{"pid": 1234, "exe": "/usr/bin/bash", "method": "stat"}
+type F map[string]any
+
 var (
 	logLevelMap = map[string]slog.Level{
 		"trace":     TRACE,
@@ -66,7 +82,7 @@ func NewLogger(format string) {
 	switch format {
 	case JSON:
 		LogFormat = JSON
-		slogger = slog.New(slog.NewJSONHandler(os.Stdout, HandlerOpts))
+		slogger = slog.New(slog.NewJSONHandler(os.Stdout, HandlerOpts)).WithGroup("data")
 	case TEXT:
 		LogFormat = TEXT
 		slogger = slog.New(slog.NewTextHandler(os.Stdout, HandlerOpts))
@@ -152,10 +168,40 @@ func printPlain(level slog.Level, msg string, args ...any) {
 		if level == DETECTION || level == WARN || level == ERROR {
 			msg = strings.ReplaceAll(msg, "\n", " ")
 			msg = strings.ReplaceAll(msg, "\t", " ")
+			msg = strings.ReplaceAll(msg, "\x00", " ")
 			msg = strings.TrimSpace(msg)
 			slogger.Log(context.Background(), level, fmt.Sprintf(msg, args...))
 		}
 		return
 	}
 	fmt.Printf(logLevelColor[level]+msg, args...)
+}
+
+// Event logs a fully structured detection event.
+//
+// category is the slog msg.
+// Every key/value in fields becomes a slog attribute.
+//
+// With --format json:
+//
+//	{"time":"…","level":"ERROR+4","msg":"hidden PID found",
+//	 "category":"hidden_pid","pid":1234,"exe":"/usr/bin/bash","method":"stat"}
+//
+// With --format plain:
+//
+//	hidden PID found  category=hidden_pid  pid=1234  exe=/usr/bin/bash  method=stat
+func Event(level slog.Level, category, msg string, fields []Fields) {
+	if LogFormat == PLAIN {
+		tmp := make([]any, 0, len(fields)+1)
+		for i := 0; i < len(fields); i++ {
+			tmp = append(tmp, fields[i].Value)
+		}
+		printPlain(level, msg, tmp...)
+		return
+	}
+	attrs := make([]slog.Attr, 0, len(fields)+1)
+	for _, v := range fields {
+		attrs = append(attrs, slog.Any(v.Key, v.Value))
+	}
+	slogger.LogAttrs(context.Background(), level, category, attrs...)
 }

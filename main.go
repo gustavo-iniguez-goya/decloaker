@@ -413,46 +413,60 @@ func diskStat() int {
 }
 
 func dumpFiles() {
-	dlog.Detection("%-10s %-10s %-6s %-8s %-5s %-5s %s %-16s %s\t%s\n",
+	dlog.Log("%-10s %-10s %-6s %-10s %-6s %-6s %s %-16s %s\t%s\n",
 		"Pid", "PPid", "Fd", "Inode", "UID", "GID", "Host", "Comm", "File", "Exe")
 	files := ebpf.GetFileList(CLI.Dump.Files.Host)
 	for _, f := range files {
-		dlog.Detection("%-10s %-10s %-6s %-8s %-5s %-5s %s %-16s %s\t%s\n",
-			f.Pid, f.PPid,
-			f.Fd, f.Inode,
-			f.Uid, f.Gid,
-			f.Hostname,
-			f.Comm, f.File, f.Exe,
-		)
+		dlog.Event(dlog.DETECTION, dlog.CatDumpFiles, "open file descriptor",
+			[]dlog.Fields{
+				{Key: "pid", Value: f.Pid},
+				{Key: "ppid", Value: f.PPid},
+				{Key: "fd", Value: f.Fd},
+				{Key: "inode", Value: f.Inode},
+				{Key: "uid", Value: f.Uid},
+				{Key: "gid", Value: f.Gid},
+				{Key: "hostname", Value: f.Hostname},
+				{Key: "comm", Value: f.Comm},
+				{Key: "file", Value: f.File},
+				{Key: "exe", Value: f.Exe},
+			})
 	}
 }
 
 func dumpKmods() {
-	dlog.Detection("%-20s\t%-10s\t%s\t%s\t%s\n",
+	dlog.Log("%-20s\t%-10s\t%s\t%s\t%s\n",
 		"Name", "Type", "Symbol", "Address", "Function")
 	kmods := ebpf.GetKmodList()
 	for _, k := range kmods {
-		dlog.Detection("%-20s\t%-10s\t%s\t%s\t%s\n",
-			k.Name,
-			k.Type,
-			k.AType,
-			k.Addr,
-			k.Func,
-		)
+		dlog.Event(dlog.DETECTION, dlog.CatDumpKmods, "loaded kernel module",
+			[]dlog.Fields{
+				{Key: "name", Value: k.Name},
+				{Key: "type", Value: k.Type},
+				{Key: "symbol", Value: k.AType},
+				{Key: "addr", Value: k.Addr},
+				{Key: "func", Value: k.Func},
+			})
 	}
 }
 
 func dumpTasks() {
-	dlog.Detection("%-10s %-10s %-8s %-8s %-8s %-16s %-16s %s\n",
+	dlog.Log("%-10s %-10s %-10s %-8s %-8s %-16s %-16s %s\n",
 		"Pid", "PPid", "Inode", "UID", "GID", "Host", "Comm", "Exe")
 	tasks := ebpf.GetPidList(CLI.Dump.Tasks.Host)
 	for _, t := range tasks {
-		dlog.Detection("%-10s %-10s %-8s %-8s %-8s %-16s %-16s %s\n",
-			t.Pid, t.PPid,
-			t.Inode,
-			t.Uid, t.Gid,
-			t.Hostname,
-			t.Comm, t.Exe,
-		)
+		dlog.Event(
+			dlog.DETECTION,
+			dlog.CatDumpTasks,
+			"%-10s %-10s %-10s %-8s %-8s %-16s %-16s %s\n",
+			[]dlog.Fields{
+				{Key: "pid", Value: t.Pid},
+				{Key: "ppid", Value: t.PPid},
+				{Key: "inode", Value: t.Inode},
+				{Key: "uid", Value: t.Uid},
+				{Key: "gid", Value: t.Gid},
+				{Key: "hostname", Value: t.Hostname},
+				{Key: "comm", Value: t.Comm},
+				{Key: "exe", Value: t.Exe},
+			})
 	}
 }

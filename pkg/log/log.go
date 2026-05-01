@@ -27,10 +27,17 @@ const (
 )
 
 const (
-	CatDumpTasks  = "dump_tasks"
-	CatDumpFiles  = "dump_files"
-	CatDumpKmods  = "dump_kmods"
-	CatHiddenKmod = "hidden_kmod"
+	CatDumpTasks             = "dump_tasks"
+	CatDumpFiles             = "dump_files"
+	CatDumpKmods             = "dump_kmods"
+	CatHiddenKmod            = "hidden_kmod"
+	CatHiddenPid             = "hidden_pid"
+	CatHiddenPidThread       = "hidden_pid_thread"
+	CatHiddenPidMount        = "hidden_pid_mount"
+	CatHiddenContent         = "hidden_content"
+	CatHiddenCgroup          = "hidden_cgroup"
+	CatHiddenCgroupTaskStats = "hidden_cgroup+taskstats"
+	CatSuspiciousPid         = "suspicious_pid"
 )
 
 // Fields is an alias for structured fields attached to an Event.

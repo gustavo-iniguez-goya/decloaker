@@ -32,6 +32,15 @@ const (
 	ProcPrefix = "/proc/"
 	ProcMounts = "/proc/mounts"
 	ProcPidMax = "/proc/sys/kernel/pid_max"
+
+	MethodProc       = "proc"
+	MethodStat       = "stat"
+	MethodChdir      = "chdir"
+	MethodBruteForce = "brute_force"
+	MethodEbpf       = "ebpf"
+	MethodTaskStats  = "taskstats"
+	MethodCgroup     = "cgroup"
+	MethodBindMount  = "bind_mount"
 )
 
 var (
@@ -39,20 +48,22 @@ var (
 )
 
 func printHiddenPid(pid, ppid, inode, uid, gid, comm, exe string) {
-
 	if exe == "" {
 		exe, _ = utils.ReadlinkEscaped(ProcPrefix + pid + "/exe")
 	}
 
-	log.Detection("\tPID: %s\tPPid: %s\n\tInode: %s\tUid: %s\tGid: %s\n\tComm: %s\n\tPath: %s\n\n",
-		pid,
-		ppid,
-		inode,
-		uid,
-		gid,
-		comm,
-		utils.ToAscii(exe),
-	)
+	log.Event(log.DETECTION, log.CatHiddenPid, "WARNING (%s): pid hidden?\n\tPID: %s\tPPid: %s\n\tInode: %s\tUid: %s\tGid: %s\n\tComm: %s\n\tPath: %s\n\n",
+		[]log.Fields{
+
+			{Key: "method", Value: MethodEbpf},
+			{Key: "pid", Value: pid},
+			{Key: "ppid", Value: ppid},
+			{Key: "inode", Value: inode},
+			{Key: "uid", Value: uid},
+			{Key: "gid", Value: gid},
+			{Key: "comm", Value: comm},
+			{Key: "exe", Value: utils.ToAscii(exe)},
+		})
 }
 
 func getPidInfo(procPath string) ([][]string, string, error) {
@@ -74,12 +85,17 @@ func getPidInfo(procPath string) ([][]string, string, error) {
 }
 
 func printBinaryInfo(tgid, pid int) string {
-	log.Detection("WARNING: thread of a hidden PID found %d, ppid: %d\n", pid, tgid)
 	cmdline, _ := os.ReadFile(fmt.Sprint(ProcPrefix, pid, "/cmdline"))
 	exe, _ := utils.ReadlinkEscaped(fmt.Sprint(ProcPrefix, pid, "/exe"))
 	//hiddenProcs[tgid] = exe
 
-	log.Detection("\tPath: %s\n\tCmdline: %s\n\n", exe, cmdline)
+	log.Event(log.DETECTION, log.CatHiddenPidThread, "WARNING: thread of a hidden PID found %d, ppid: %d\n\tPath: %s\n\tCmdline: %s\n\n",
+		[]log.Fields{
+			{Key: "pid", Value: pid},
+			{Key: "tgid", Value: tgid},
+			{Key: "exe", Value: exe},
+			{Key: "cmdline", Value: strings.TrimRight(string(cmdline), "\x00")},
+		})
 
 	return exe
 }
@@ -92,22 +108,43 @@ func checkOtherMethods(nlTasks *taskstats.Client, pid int) (string, int) {
 	statInf := Stat([]string{procPath})
 	statWorked := len(statInf) > 0
 	chdirWorked := os.Chdir(fmt.Sprint(ProcPrefix, pid)) == nil
+	log.Trace("checkOtherMethods() stat: %v, chdir: %v\n", statWorked, chdirWorked)
+
+	// point procPath to the exe. It may be overwritten by any of the following methods.
+	procPath = fmt.Sprint(ProcPrefix, pid, "/exe")
+
 	if nlTasks != nil {
 		pidStats, _ := nlTasks.PID(pid)
 		if pidStats != nil {
-			log.Detection("\tWARNING: hidden PID confirmed via TaskStats: %d\n", pid)
+			log.Event(log.DETECTION, log.CatHiddenPid, "\tWARNING: hidden PID confirmed via %s: %d\n",
+				[]log.Fields{
+					{Key: "method", Value: MethodTaskStats},
+					{Key: "pid", Value: pid},
+				})
 			ret = PROC_HIDDEN
 		}
-	} else if statWorked {
+	}
+	if statWorked {
 		log.Detection("\tWARNING: hidden PID confirmed via Stat: %d\n", pid)
 		PrintStat([]string{procPath})
-		ret = PROC_HIDDEN
-	} else if chdirWorked {
-		log.Detection("\tWARNING: hidden PID confirmed via Chdir: %d\n", pid)
+		//log.Event("hidden_pid", "hidden PID confirmed via Stat",
+		//	log.F{"pid": pid, "method": "stat"})
 		ret = PROC_HIDDEN
 	}
+	if chdirWorked {
+		log.Event(log.DETECTION, log.CatHiddenPid, "\tWARNING: hidden PID confirmed via %s: %d\n",
+			[]log.Fields{
+				{Key: "method", Value: MethodChdir},
+				{Key: "pid", Value: pid},
+			})
+		ret = PROC_HIDDEN
 
-	procPath = fmt.Sprint(ProcPrefix, pid, "/exe")
+		cwd, _ := os.Getwd()
+		log.Trace("checkOtherMethods, cwd: %s\n", cwd)
+		// we need to use relative paths if chdir worked
+		procPath = "./exe"
+	}
+
 	statExe := Stat([]string{procPath})
 	statExeWorked := len(statExe) > 0
 	if statExeWorked {
@@ -116,7 +153,8 @@ func checkOtherMethods(nlTasks *taskstats.Client, pid int) (string, int) {
 	exe, _ = utils.ReadlinkEscaped(procPath)
 	if exe != "" {
 		log.Detection("\tPath: %s\n", exe)
-	} else if statExeWorked {
+	}
+	if statExeWorked {
 		log.Detection("\t(Binary path not found, use the inode to search it)\n")
 	}
 
@@ -149,6 +187,7 @@ func bruteForcePids(nlTasks *taskstats.Client, expected map[string]os.FileInfo, 
 		procPath = fmt.Sprint(ProcPrefix, pid, "/comm")
 		comm, err := os.ReadFile(procPath)
 		if err != nil {
+			log.Trace("bruteForce() error reading %s, trying other methods\n", procPath)
 			exe := ""
 			exe, ret = checkOtherMethods(nlTasks, pid)
 			hiddenProcs[pid] = exe
@@ -179,8 +218,14 @@ func bruteForcePids(nlTasks *taskstats.Client, expected map[string]os.FileInfo, 
 		exe, _ := utils.ReadlinkEscaped(procPath)
 		hiddenProcs[pid] = exe
 
-		log.Detection("WARNING: hidden proc? /proc/%d\n", pid)
-		log.Detection("\n\texe: %s\n\tcomm: %s\n\tcmdline: %s\n\n", exe, bytes.Trim(comm, "\n"), cmdline)
+		log.Event(log.DETECTION, log.CatHiddenPid, "WARNING: found hidden proc? (%s) /proc/%d\n\n\texe: %s\n\tcomm: %s\n\tcmdline: %s\n\n",
+			[]log.Fields{
+				{Key: "method", Value: MethodBruteForce},
+				{Key: "pid", Value: pid},
+				{Key: "exe", Value: exe},
+				{Key: "comm", Value: strings.TrimRight(string(bytes.Trim(comm, "\n")), "\x00")},
+				{Key: "cmdline", Value: strings.TrimRight(string(cmdline), "\x00")},
+			})
 
 		ret = PROC_HIDDEN
 	}
@@ -205,16 +250,24 @@ func CheckSuspiciousProcs(cfg *config.PatternsConfig) map[string]ebpf.Task {
 
 	for _, t := range liveTasks {
 		ret = OK
-		status, _, _ := getPidInfo(fmt.Sprint(ProcPrefix, t.Pid))
+		status, bin, _ := getPidInfo(fmt.Sprint(ProcPrefix, t.Pid))
 
 		msg := ""
+		exe := ""
+		if t.Exe != "" {
+			exe = t.Exe
+		} else {
+			exe = bin
+		}
+
 		cline, err := os.ReadFile(ProcPrefix + t.Pid + "/cmdline")
 		if err != nil {
 			log.Debug("CheckSuspiciousProcs, unable to read cmdline: %s, %s", t.Pid, t.Comm)
 			continue
 		}
 		cmdline := string(cline)
-		t.Cmdline = cmdline
+		t.Cmdline = strings.Replace(cmdline, "\x00", " ", -1)
+		log.Trace("analyzing process via eBPF: %v\n", t)
 
 		// TODO:
 		// - Allow to parse process tree.
@@ -228,6 +281,14 @@ func CheckSuspiciousProcs(cfg *config.PatternsConfig) map[string]ebpf.Task {
 		if match := cfg.MatchProcess(&t); match != nil {
 			msg += fmt.Sprintf("\t\nWARNING (%s): %s\n", t.Pid, match.Description)
 			ret = SUSPICIOUS_PROC
+			log.Event(log.DETECTION, "hidden_pid", "hidden process found via brute force",
+				[]log.Fields{
+					{Key: "pid", Value: t.Pid},
+					{Key: "exe", Value: exe},
+					{Key: "comm", Value: strings.TrimRight(t.Comm, "\x00")},
+					{Key: "cmdline", Value: strings.TrimRight(string(cmdline), "\x00")},
+					{Key: "method", Value: MethodBruteForce},
+				})
 		}
 		if ret == SUSPICIOUS_PROC {
 			suspicious[msg] = t
@@ -246,12 +307,16 @@ func CheckBindMounts() int {
 		if err != nil {
 			return
 		}
-		log.Detection("\tOverlay PID:\n\t  PID: %s\n\t  PPid: %s\n\t  Comm: %s\n\t  Path: %s\n\n",
-			status[PidPID][2],
-			status[PidPPID][2],
-			status[PidName][2],
-			exe,
-		)
+		// Log the overlay (visible) PID first.
+		log.Event(log.DETECTION, log.CatHiddenPidMount, "\tOverlay PID (%s):\n\t  PID: %s\n\t  PPid: %s\n\t  Comm: %s\n\t  Path: %s\nMount path: %s\n\n",
+			[]log.Fields{
+				{Key: "method", Value: MethodBindMount},
+				{Key: "pid", Value: status[PidPID][2]},
+				{Key: "ppid", Value: status[PidPPID][2]},
+				{Key: "comm", Value: status[PidName][2]},
+				{Key: "exe", Value: exe},
+				{Key: "mount_path", Value: procPath},
+			})
 
 		err = exec.Command("umount", procPath).Run()
 		if err != nil {
@@ -261,12 +326,16 @@ func CheckBindMounts() int {
 		log.Debug("%s umounted\n", procPath)
 
 		status, exe, err = getPidInfo(procPath)
-		log.Detection("\tHIDDEN PID:\n\t  PID: %s\n\t  PPid: %s\n\t  Comm: %s\n\t  Path: %s\n\n",
-			status[PidPID][2],
-			status[PidPPID][2],
-			status[PidName][2],
-			exe,
-		)
+		// Log the now-revealed hidden PID.
+		log.Event(log.DETECTION, log.CatHiddenPidMount, "\tHIDDEN PID (%s):\n\t  PID: %s\n\t  PPid: %s\n\t  Comm: %s\n\t  Path: %s\nMount path: %s\n\n",
+			[]log.Fields{
+				{Key: "method", Value: MethodBindMount},
+				{Key: "pid", Value: status[PidPID][2]},
+				{Key: "ppid", Value: status[PidPPID][2]},
+				{Key: "comm", Value: status[PidName][2]},
+				{Key: "exe", Value: exe},
+				{Key: "mount_path", Value: procPath},
+			})
 	}
 
 	mounts, err := os.ReadFile(ProcMounts)
@@ -311,29 +380,46 @@ func CheckHiddenProcsCgroups(nlTasks *taskstats.Client, expected map[string]os.F
 				continue
 			}
 			iPid, _ := strconv.Atoi(pid)
-			log.Log("WARNING: hidden PID found via Cgroups: %s\n", cgPid)
 			checkOtherMethods(nlTasks, iPid)
 			ret = PROC_HIDDEN
 
-			// TODO: https://github.com/mdlayher/taskstats/issues/14
+			fields := []log.Fields{
+				{Key: "method", Value: MethodCgroup},
+				{Key: "pid", Value: pid},
+				{Key: "cgroup_path", Value: path},
+			}
+			log.Event(
+				log.DETECTION,
+				log.CatHiddenCgroup,
+				"WARNING: hidden PID found via %s, PID: %d, Cgroup path: %s\n",
+				fields)
+
+			// Enrich with taskstats if available.
 			if nlTasks == nil {
 				log.Debug("unable to obtain PID info via TaskStats\n")
 				continue
 			}
 			spid, _ := strconv.Atoi(pid)
 			pidStats, _ := nlTasks.PID(spid)
-			comm := utils.IntSliceToString(pidStats.Comm, "")
 			if pidStats != nil {
-				log.Log("\tComm: %s\n\tPID: %d, PPID: %d, TGID: %d, UID: %d, GID: %d, Dev: %d, Inode: %d\n",
-					comm,
-					pidStats.PID,
-					pidStats.PPID,
-					pidStats.TGID,
-					pidStats.UID,
-					pidStats.GID,
-					pidStats.ExeDev,
-					pidStats.ExeInode,
-				)
+				comm := utils.IntSliceToString(pidStats.Comm, "")
+				fields = []log.Fields{
+					{Key: "method", Value: MethodTaskStats},
+					{Key: "comm", Value: comm},
+					{Key: "ppid", Value: pidStats.PPID},
+					{Key: "tgid", Value: pidStats.TGID},
+					{Key: "uid", Value: pidStats.UID},
+					{Key: "gid", Value: pidStats.GID},
+					{Key: "exe_dev", Value: pidStats.ExeDev},
+					{Key: "exe_inode", Value: pidStats.ExeInode},
+				}
+				log.Event(
+					log.DETECTION,
+					log.CatHiddenCgroupTaskStats,
+					"\t%s info:\n\tComm: %s, PPID: %d, TGID: %d, UID: %d, GID: %d, Dev: %d, Inode: %d\n",
+					fields)
+			} else {
+				log.Error("pidStats nil, unable to obtain pid info (%d)\n", pid)
 			}
 		}
 	}
@@ -363,12 +449,28 @@ func CheckHiddenProcs(doBruteForce bool, maxPid int) int {
 			continue
 		}
 
-		log.Detection("WARNING (ebpf): pid hidden?\n")
-
 		printHiddenPid(t.Pid, t.PPid, t.Inode, t.Uid, t.Gid, t.Comm, t.Exe)
+		/*log.Event(log.DETECTION, log.CatHiddenPid, "WARNING (ebpf): hidden pid?\n",
+		[]log.Fields{
+			{Key: "pid", Value: t.Pid},
+			{Key: "ppid", Value: t.PPid},
+			{Key: "inode", Value: t.Inode},
+			{Key: "uid", Value: t.Uid},
+			{Key: "gid", Value: t.Gid},
+			{Key: "comm", Value: t.Comm},
+			{Key: "exe", Value: t.Exe},
+			{Key: "method", Value: "ebpf"},
+		})*/
+
 		statInf := Stat([]string{procPath})
 		if len(statInf) > 0 {
-			log.Detection("\tPID confirmed via Stat: %s, %s\n\n", t.Pid, t.Comm)
+			//log.Detection("\tPID confirmed via Stat: %s, %s\n\n", t.Pid, t.Comm)
+			log.Event(log.DETECTION, "hidden_pid", "hidden PID confirmed via %s (eBPF): %s, %s\n\n",
+				[]log.Fields{
+					{Key: "method", Value: "stat"},
+					{Key: "pid", Value: t.Pid},
+					{Key: "comm", Value: t.Comm},
+				})
 			PrintStat([]string{procPath})
 		}
 		ret = PROC_HIDDEN

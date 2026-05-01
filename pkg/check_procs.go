@@ -56,14 +56,14 @@ func printHiddenPid(pid, ppid, inode, uid, gid, comm, exe string) {
 	log.Event(log.DETECTION, log.CatHiddenPid, "WARNING (%s): pid hidden?\n\tPID: %s\tPPid: %s\n\tInode: %s\tUid: %s\tGid: %s\n\tComm: %s\n\tPath: %s\n\n",
 		[]log.Fields{
 
-			{Key: "method", Value: MethodEbpf},
-			{Key: "pid", Value: pid},
-			{Key: "ppid", Value: ppid},
-			{Key: "inode", Value: inode},
-			{Key: "uid", Value: uid},
-			{Key: "gid", Value: gid},
-			{Key: "comm", Value: comm},
-			{Key: "exe", Value: utils.ToAscii(exe)},
+			{Key: constants.FieldMethod, Value: MethodEbpf},
+			{Key: constants.FieldPid, Value: pid},
+			{Key: constants.FieldPPid, Value: ppid},
+			{Key: constants.FieldInode, Value: inode},
+			{Key: constants.FieldUid, Value: uid},
+			{Key: constants.FieldGid, Value: gid},
+			{Key: constants.FieldComm, Value: comm},
+			{Key: constants.FieldExe, Value: utils.ToAscii(exe)},
 		})
 }
 
@@ -92,10 +92,10 @@ func printBinaryInfo(tgid, pid int) string {
 
 	log.Event(log.DETECTION, log.CatHiddenPidThread, "WARNING: thread of a hidden PID found %d, ppid: %d\n\tPath: %s\n\tCmdline: %s\n\n",
 		[]log.Fields{
-			{Key: "pid", Value: pid},
-			{Key: "tgid", Value: tgid},
-			{Key: "exe", Value: exe},
-			{Key: "cmdline", Value: strings.TrimRight(string(cmdline), "\x00")},
+			{Key: constants.FieldPid, Value: pid},
+			{Key: constants.FieldTgid, Value: tgid},
+			{Key: constants.FieldExe, Value: exe},
+			{Key: constants.FieldCmdline, Value: strings.TrimRight(string(cmdline), "\x00")},
 		})
 
 	return exe
@@ -119,8 +119,8 @@ func checkOtherMethods(nlTasks *taskstats.Client, pid int) (string, int) {
 		if pidStats != nil {
 			log.Event(log.DETECTION, log.CatHiddenPid, "\tWARNING: hidden PID confirmed via %s: %d\n",
 				[]log.Fields{
-					{Key: "method", Value: MethodTaskStats},
-					{Key: "pid", Value: pid},
+					{Key: constants.FieldMethod, Value: MethodTaskStats},
+					{Key: constants.FieldPid, Value: pid},
 				})
 			ret = constants.PROC_HIDDEN
 		}
@@ -128,8 +128,8 @@ func checkOtherMethods(nlTasks *taskstats.Client, pid int) (string, int) {
 	if statWorked {
 		log.Event(log.DETECTION, log.CatHiddenPid, "\tWARNING: hidden PID confirmed via %s: %d\n",
 			[]log.Fields{
-				{Key: "method", Value: MethodStat},
-				{Key: "pid", Value: pid},
+				{Key: constants.FieldMethod, Value: MethodStat},
+				{Key: constants.FieldPid, Value: pid},
 			})
 		PrintStat([]string{procPath})
 		ret = constants.PROC_HIDDEN
@@ -137,8 +137,8 @@ func checkOtherMethods(nlTasks *taskstats.Client, pid int) (string, int) {
 	if chdirWorked {
 		log.Event(log.DETECTION, log.CatHiddenPid, "\tWARNING: hidden PID confirmed via %s: %d\n",
 			[]log.Fields{
-				{Key: "method", Value: MethodChdir},
-				{Key: "pid", Value: pid},
+				{Key: constants.FieldMethod, Value: MethodChdir},
+				{Key: constants.FieldPid, Value: pid},
 			})
 		ret = constants.PROC_HIDDEN
 
@@ -223,11 +223,11 @@ func bruteForcePids(nlTasks *taskstats.Client, expected map[string]os.FileInfo, 
 
 		log.Event(log.DETECTION, log.CatHiddenPid, "WARNING: found hidden proc? (%s) /proc/%d\n\n\texe: %s\n\tcomm: %s\n\tcmdline: %s\n\n",
 			[]log.Fields{
-				{Key: "method", Value: MethodBruteForce},
-				{Key: "pid", Value: pid},
-				{Key: "exe", Value: exe},
-				{Key: "comm", Value: strings.TrimRight(string(bytes.Trim(comm, "\n")), "\x00")},
-				{Key: "cmdline", Value: strings.TrimRight(string(cmdline), "\x00")},
+				{Key: constants.FieldMethod, Value: MethodBruteForce},
+				{Key: constants.FieldPid, Value: pid},
+				{Key: constants.FieldExe, Value: exe},
+				{Key: constants.FieldComm, Value: strings.TrimRight(string(bytes.Trim(comm, "\n")), "\x00")},
+				{Key: constants.FieldCmdline, Value: strings.TrimRight(string(cmdline), "\x00")},
 			})
 
 		ret = constants.PROC_HIDDEN
@@ -286,11 +286,11 @@ func CheckSuspiciousProcs(cfg *config.PatternsConfig) map[string]ebpf.Task {
 			ret = constants.SUSPICIOUS_PROC
 			log.Event(log.DETECTION, "hidden_pid", "hidden process found via brute force",
 				[]log.Fields{
-					{Key: "pid", Value: t.Pid},
-					{Key: "exe", Value: exe},
-					{Key: "comm", Value: strings.TrimRight(t.Comm, "\x00")},
-					{Key: "cmdline", Value: strings.TrimRight(string(cmdline), "\x00")},
-					{Key: "method", Value: MethodBruteForce},
+					{Key: constants.FieldPid, Value: t.Pid},
+					{Key: constants.FieldExe, Value: exe},
+					{Key: constants.FieldComm, Value: strings.TrimRight(t.Comm, "\x00")},
+					{Key: constants.FieldCmdline, Value: strings.TrimRight(string(cmdline), "\x00")},
+					{Key: constants.FieldMethod, Value: MethodBruteForce},
 				})
 		}
 		if ret == constants.SUSPICIOUS_PROC {
@@ -313,12 +313,12 @@ func CheckBindMounts() int {
 		// Log the overlay (visible) PID first.
 		log.Event(log.DETECTION, log.CatHiddenPidMount, "\tOverlay PID (%s):\n\t  PID: %s\n\t  PPid: %s\n\t  Comm: %s\n\t  Path: %s\nMount path: %s\n\n",
 			[]log.Fields{
-				{Key: "method", Value: MethodBindMount},
-				{Key: "pid", Value: status[PidPID][2]},
-				{Key: "ppid", Value: status[PidPPID][2]},
-				{Key: "comm", Value: status[PidName][2]},
-				{Key: "exe", Value: exe},
-				{Key: "mount_path", Value: procPath},
+				{Key: constants.FieldMethod, Value: MethodBindMount},
+				{Key: constants.FieldPid, Value: status[PidPID][2]},
+				{Key: constants.FieldPPid, Value: status[PidPPID][2]},
+				{Key: constants.FieldComm, Value: status[PidName][2]},
+				{Key: constants.FieldExe, Value: exe},
+				{Key: constants.FieldMountPath, Value: procPath},
 			})
 
 		err = exec.Command("umount", procPath).Run()
@@ -332,12 +332,12 @@ func CheckBindMounts() int {
 		// Log the now-revealed hidden PID.
 		log.Event(log.DETECTION, log.CatHiddenPidMount, "\tHIDDEN PID (%s):\n\t  PID: %s\n\t  PPid: %s\n\t  Comm: %s\n\t  Path: %s\nMount path: %s\n\n",
 			[]log.Fields{
-				{Key: "method", Value: MethodBindMount},
-				{Key: "pid", Value: status[PidPID][2]},
-				{Key: "ppid", Value: status[PidPPID][2]},
-				{Key: "comm", Value: status[PidName][2]},
-				{Key: "exe", Value: exe},
-				{Key: "mount_path", Value: procPath},
+				{Key: constants.FieldMethod, Value: MethodBindMount},
+				{Key: constants.FieldPid, Value: status[PidPID][2]},
+				{Key: constants.FieldPPid, Value: status[PidPPID][2]},
+				{Key: constants.FieldComm, Value: status[PidName][2]},
+				{Key: constants.FieldExe, Value: exe},
+				{Key: constants.FieldMountPath, Value: procPath},
 			})
 	}
 
@@ -387,9 +387,9 @@ func CheckHiddenProcsCgroups(nlTasks *taskstats.Client, expected map[string]os.F
 			ret = constants.PROC_HIDDEN
 
 			fields := []log.Fields{
-				{Key: "method", Value: MethodCgroup},
-				{Key: "pid", Value: pid},
-				{Key: "cgroup_path", Value: path},
+				{Key: constants.FieldMethod, Value: MethodCgroup},
+				{Key: constants.FieldPid, Value: pid},
+				{Key: constants.FieldCgroupPath, Value: path},
 			}
 			log.Event(
 				log.DETECTION,
@@ -407,14 +407,14 @@ func CheckHiddenProcsCgroups(nlTasks *taskstats.Client, expected map[string]os.F
 			if pidStats != nil {
 				comm := utils.IntSliceToString(pidStats.Comm, "")
 				fields = []log.Fields{
-					{Key: "method", Value: MethodTaskStats},
-					{Key: "comm", Value: comm},
-					{Key: "ppid", Value: pidStats.PPID},
-					{Key: "tgid", Value: pidStats.TGID},
-					{Key: "uid", Value: pidStats.UID},
-					{Key: "gid", Value: pidStats.GID},
-					{Key: "dev", Value: pidStats.ExeDev},
-					{Key: "inode", Value: pidStats.ExeInode},
+					{Key: constants.FieldMethod, Value: MethodTaskStats},
+					{Key: constants.FieldComm, Value: comm},
+					{Key: constants.FieldPPid, Value: pidStats.PPID},
+					{Key: constants.FieldTgid, Value: pidStats.TGID},
+					{Key: constants.FieldUid, Value: pidStats.UID},
+					{Key: constants.FieldGid, Value: pidStats.GID},
+					{Key: constants.FieldExeDev, Value: pidStats.ExeDev},
+					{Key: constants.FieldInode, Value: pidStats.ExeInode},
 				}
 				log.Event(
 					log.DETECTION,
@@ -458,9 +458,9 @@ func CheckHiddenProcs(doBruteForce bool, maxPid int) int {
 		if len(statInf) > 0 {
 			log.Event(log.DETECTION, "hidden_pid", "hidden PID confirmed via %s (eBPF): %s, %s\n\n",
 				[]log.Fields{
-					{Key: "method", Value: MethodStat},
-					{Key: "pid", Value: t.Pid},
-					{Key: "comm", Value: t.Comm},
+					{Key: constants.FieldMethod, Value: MethodStat},
+					{Key: constants.FieldPid, Value: t.Pid},
+					{Key: constants.FieldComm, Value: t.Comm},
 				})
 			PrintStat([]string{procPath})
 		}

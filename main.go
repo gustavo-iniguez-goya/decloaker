@@ -426,16 +426,16 @@ func dumpFiles() {
 		dlog.Event(dlog.DETECTION, dlog.CatDumpFiles,
 			"%-10s %-10s %-6s %-10s %-6s %-6s %s %-16s %s\t%s\n",
 			[]dlog.Fields{
-				{Key: "pid", Value: f.Pid},
-				{Key: "ppid", Value: f.PPid},
-				{Key: "fd", Value: f.Fd},
-				{Key: "inode", Value: f.Inode},
-				{Key: "uid", Value: f.Uid},
-				{Key: "gid", Value: f.Gid},
-				{Key: "hostname", Value: f.Hostname},
-				{Key: "comm", Value: f.Comm},
-				{Key: "file", Value: f.File},
-				{Key: "exe", Value: f.Exe},
+				{Key: constants.FieldPid, Value: f.Pid},
+				{Key: constants.FieldPPid, Value: f.PPid},
+				{Key: constants.FieldFd, Value: f.Fd},
+				{Key: constants.FieldInode, Value: f.Inode},
+				{Key: constants.FieldUid, Value: f.Uid},
+				{Key: constants.FieldGid, Value: f.Gid},
+				{Key: constants.FieldHostname, Value: f.Hostname},
+				{Key: constants.FieldComm, Value: f.Comm},
+				{Key: constants.FieldFile, Value: f.File},
+				{Key: constants.FieldExe, Value: f.Exe},
 			})
 	}
 }
@@ -447,11 +447,11 @@ func dumpKmods() {
 	for _, k := range kmods {
 		dlog.Event(dlog.DETECTION, dlog.CatDumpKmods, "%-20s\t%-10s\t%s\t%-18s\t%s\n",
 			[]dlog.Fields{
-				{Key: "name", Value: k.Name},
-				{Key: "type", Value: k.Type},
-				{Key: "symbol", Value: k.AType},
-				{Key: "addr", Value: k.Addr},
-				{Key: "func", Value: k.Func},
+				{Key: constants.FieldName, Value: k.Name},
+				{Key: constants.FieldType, Value: k.Type},
+				{Key: constants.FieldSymbol, Value: k.AType},
+				{Key: constants.FieldAddr, Value: k.Addr},
+				{Key: constants.FieldFunc, Value: k.Func},
 			})
 	}
 }
@@ -466,14 +466,14 @@ func dumpTasks() {
 			dlog.CatDumpTasks,
 			"%-10s %-10s %-10s %-8s %-8s %-16s %-16s %s\n",
 			[]dlog.Fields{
-				{Key: "pid", Value: t.Pid},
-				{Key: "ppid", Value: t.PPid},
-				{Key: "inode", Value: t.Inode},
-				{Key: "uid", Value: t.Uid},
-				{Key: "gid", Value: t.Gid},
-				{Key: "hostname", Value: t.Hostname},
-				{Key: "comm", Value: t.Comm},
-				{Key: "exe", Value: t.Exe},
+				{Key: constants.FieldPid, Value: t.Pid},
+				{Key: constants.FieldPPid, Value: t.PPid},
+				{Key: constants.FieldInode, Value: t.Inode},
+				{Key: constants.FieldUid, Value: t.Uid},
+				{Key: constants.FieldGid, Value: t.Gid},
+				{Key: constants.FieldHostname, Value: t.Hostname},
+				{Key: constants.FieldComm, Value: t.Comm},
+				{Key: constants.FieldExe, Value: t.Exe},
 			})
 	}
 }

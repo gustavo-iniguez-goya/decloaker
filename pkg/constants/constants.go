@@ -92,4 +92,13 @@ const (
 	FieldLetter = "letter"
 	FieldReason = "reason"
 	FieldFlags  = "flags"
+
+	FieldOriginalSize    = "original_size"
+	FieldOriginalContent = "original_content"
+	FieldExpectedSize    = "expected_size"
+	FieldExpectedContent = "expected_content"
+	FieldContentSize     = "content_size"
+	FieldMmapSize        = "mmap_size"
+	FieldStatSize        = "stat_size"
+	FieldIsSymlink       = "is_symlink"
 )

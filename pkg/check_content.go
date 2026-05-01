@@ -40,13 +40,26 @@ func CheckHiddenContent(paths []string) int {
 		} else {
 			// XXX: sizes may differ if the file is a symbolic link to /proc, like /etc/mtab
 			if !strings.HasPrefix(f, "/proc") && stat.Size() != int64(expectedSize) {
-				log.Detection("\n=== CONTENT WARNING (read) %s ===\n", f)
-				log.Detection("size differs (content: %d, stat.size: %d, symlink: %v), %s\n", expectedSize, stat.Size(), stat.Mode(), f)
-				log.Detection("====================================\n")
-				ret = constants.CONTENT_HIDDEN
+				r := constants.CONTENT_HIDDEN
+				log.Event(log.DETECTION, log.CatHiddenContent,
+					"\n=== CONTENT WARNING (%s) ===\nsize differs (content: %d, stat.size: %d, symlink: %v), %s\n====================================\n",
+					[]log.Fields{
+						{Key: constants.FieldMethod, Value: "read"},
+						{Key: constants.FieldContentSize, Value: expectedSize},
+						{Key: constants.FieldStatSize, Value: stat.Size()},
+						{Key: constants.FieldIsSymlink, Value: stat.Mode()&os.ModeSymlink != 0},
+						{Key: constants.FieldPath, Value: f},
+					})
+				if r != constants.OK {
+					ret = constants.CONTENT_HIDDEN
+					hiddenFound = true
+				}
 			}
 			ret = CompareContent(f, fileContent[f], expected, fileSize, expectedSize, "read")
-			hiddenFound = ret == constants.CONTENT_HIDDEN
+			if ret != constants.OK {
+				ret = constants.CONTENT_HIDDEN
+				hiddenFound = true
+			}
 		}
 
 		// don't mmap /proc or /dev/shm
@@ -62,14 +75,23 @@ func CheckHiddenContent(paths []string) int {
 		// if we haven't found anything, try it with mmap
 		if !hiddenFound {
 			if mmSize != int64(expectedSize) {
-				log.Detection("\n=== CONTENT WARNING (mmap) %s ===\n", f)
-				log.Detection("size differs (content: %d, mmap.size: %d, %s)\n", expectedSize, mmSize, f)
-				log.Log("====================================\n")
+				log.Event(log.DETECTION, log.CatHiddenContent,
+					"\n=== CONTENT WARNING (%s) ===\nsize differs (content: %d, mmap.size: %d, %s)\n====================================\n",
+					[]log.Fields{
+						{Key: constants.FieldMethod, Value: "mmap"},
+						{Key: constants.FieldContentSize, Value: expectedSize},
+						{Key: constants.FieldMmapSize, Value: mmSize},
+						{Key: constants.FieldPath, Value: f},
+					})
 				ret = constants.CONTENT_HIDDEN
+				hiddenFound = true
 			}
 
 			ret = CompareContent(f, mData, expected, int(mmSize), expectedSize, "mmap")
-			hiddenFound = ret == constants.CONTENT_HIDDEN
+			if ret != constants.OK {
+				ret = constants.CONTENT_HIDDEN
+				hiddenFound = true
+			}
 		}
 	}
 
@@ -85,11 +107,16 @@ func CompareContent(file, orig, expected string, origSize, expectedSize int, tag
 
 	if expected != orig {
 		ret = constants.FILES_HIDDEN
-		log.Detection("\n=== CONTENT WARNING (%s) %s ===\n", tag, file)
-		log.Detection("cat content (%d bytes):\n %v\n", origSize, orig)
-		log.Detection("-----------------------------------------------------------------\n")
-		log.Detection("Go read content (%d bytes):\n %s\n", expectedSize, expected)
-		log.Detection("====================================\n")
+		log.Event(log.DETECTION, log.CatHiddenContent,
+			"\n=== CONTENT WARNING (%s) %s ===\ncat content (%d bytes):\n %v\n-----------------------------------------------------------------\nGo read content (%d bytes):\n %s\n====================================\n",
+			[]log.Fields{
+				{Key: constants.FieldMethod, Value: tag},
+				{Key: constants.FieldFile, Value: file},
+				{Key: constants.FieldOriginalSize, Value: origSize},
+				{Key: constants.FieldOriginalContent, Value: orig},
+				{Key: constants.FieldExpectedSize, Value: expectedSize},
+				{Key: constants.FieldExpectedContent, Value: expected},
+			})
 
 		ret = constants.FILES_HIDDEN
 	}

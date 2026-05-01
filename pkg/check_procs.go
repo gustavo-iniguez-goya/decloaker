@@ -125,10 +125,12 @@ func checkOtherMethods(nlTasks *taskstats.Client, pid int) (string, int) {
 		}
 	}
 	if statWorked {
-		log.Detection("\tWARNING: hidden PID confirmed via Stat: %d\n", pid)
+		log.Event(log.DETECTION, log.CatHiddenPid, "\tWARNING: hidden PID confirmed via Stat: %d\n",
+			[]log.Fields{
+				{Key: "method", Value: MethodStat},
+				{Key: "pid", Value: pid},
+			})
 		PrintStat([]string{procPath})
-		//log.Event("hidden_pid", "hidden PID confirmed via Stat",
-		//	log.F{"pid": pid, "method": "stat"})
 		ret = PROC_HIDDEN
 	}
 	if chdirWorked {
@@ -450,24 +452,12 @@ func CheckHiddenProcs(doBruteForce bool, maxPid int) int {
 		}
 
 		printHiddenPid(t.Pid, t.PPid, t.Inode, t.Uid, t.Gid, t.Comm, t.Exe)
-		/*log.Event(log.DETECTION, log.CatHiddenPid, "WARNING (ebpf): hidden pid?\n",
-		[]log.Fields{
-			{Key: "pid", Value: t.Pid},
-			{Key: "ppid", Value: t.PPid},
-			{Key: "inode", Value: t.Inode},
-			{Key: "uid", Value: t.Uid},
-			{Key: "gid", Value: t.Gid},
-			{Key: "comm", Value: t.Comm},
-			{Key: "exe", Value: t.Exe},
-			{Key: "method", Value: "ebpf"},
-		})*/
 
 		statInf := Stat([]string{procPath})
 		if len(statInf) > 0 {
-			//log.Detection("\tPID confirmed via Stat: %s, %s\n\n", t.Pid, t.Comm)
 			log.Event(log.DETECTION, "hidden_pid", "hidden PID confirmed via %s (eBPF): %s, %s\n\n",
 				[]log.Fields{
-					{Key: "method", Value: "stat"},
+					{Key: "method", Value: MethodStat},
 					{Key: "pid", Value: t.Pid},
 					{Key: "comm", Value: t.Comm},
 				})

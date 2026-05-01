@@ -81,4 +81,15 @@ const (
 
 	FieldMountPath  = "mount_path"
 	FieldCgroupPath = "cgroup_path"
+
+	FieldName   = "name"
+	FieldType   = "type"
+	FieldSymbol = "symbol"
+	FieldAddr   = "addr"
+	FieldFunc   = "func"
+
+	FieldKmod   = "kmod"
+	FieldLetter = "letter"
+	FieldReason = "reason"
+	FieldFlags  = "flags"
 )

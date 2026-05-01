@@ -71,7 +71,7 @@ func hiddenFromProc(procModules []byte, msg, kmod string) int {
 	if !bytes.Contains(procModules, []byte(kmod)) {
 		log.Event(log.DETECTION, log.CatHiddenKmod, msg,
 			[]log.Fields{
-				{Key: "kmod", Value: kmod},
+				{Key: constants.FieldKmod, Value: kmod},
 			})
 		return constants.KMOD_HIDDEN
 	}
@@ -96,8 +96,8 @@ func CheckTainted() bool {
 			tainted = true
 			log.Event(log.DETECTION, "kernel_taint", "\t(%s) %s\n",
 				[]log.Fields{
-					{Key: "letter", Value: t.letter},
-					{Key: "reason", Value: t.reason},
+					{Key: constants.FieldLetter, Value: t.letter},
+					{Key: constants.FieldReason, Value: t.reason},
 				})
 		}
 	}
@@ -131,8 +131,8 @@ func CheckProcModules(tainted bool) int {
 		tainted_kmods = true
 		log.Event(log.DETECTION, "kernel_tainted", "tainted: %s, %s\n",
 			[]log.Fields{
-				{Key: "kmod", Value: fmt.Sprintf("%s", k)},
-				{Key: "flags", Value: fmt.Sprintf("%s", tainted)},
+				{Key: constants.FieldKmod, Value: fmt.Sprintf("%s", k)},
+				{Key: constants.FieldFlags, Value: fmt.Sprintf("%s", tainted)},
 			})
 		kmodList[k.Name()] = k
 
@@ -160,7 +160,7 @@ func CheckProcModules(tainted bool) int {
 		if !utils.Exists(SysModule + kname) {
 			log.Event(log.DETECTION, log.CatHiddenKmod, "\n\tWARNING (eBPF): \"%s\" kmod HIDDEN from /sys/module\n",
 				[]log.Fields{
-					{Key: "kmod", Value: kname},
+					{Key: constants.FieldKmod, Value: kname},
 				})
 			log.Log("\t%q\n", kmod)
 			hiddenFrom = append(hiddenFrom, SysModule)
@@ -244,7 +244,7 @@ func CheckTracingModules() int {
 			if !utils.Exists(SysModule + k[1]) {
 				log.Event(log.DETECTION, log.CatHiddenKmod, "\tWARNING (tracing): possible kmod hidden from /sys/module: %v\n",
 					[]log.Fields{
-						{Key: "kmod", Value: k[1]},
+						{Key: constants.FieldKmod, Value: k[1]},
 					})
 				hiddenFrom = append(hiddenFrom, SysModule)
 			}

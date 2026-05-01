@@ -9,6 +9,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/gustavo-iniguez-goya/decloaker/pkg/constants"
 	"github.com/gustavo-iniguez-goya/decloaker/pkg/log"
 	"github.com/gustavo-iniguez-goya/decloaker/pkg/sys"
 	"github.com/gustavo-iniguez-goya/decloaker/pkg/utils"
@@ -52,7 +53,7 @@ func Cat(paths []string) int {
 	}
 	log.Log("\n")
 
-	return OK
+	return constants.OK
 }
 
 func Copy(orig, dest string) int {
@@ -61,30 +62,30 @@ func Copy(orig, dest string) int {
 	data, err := ioutil.ReadFile(orig)
 	if err != nil {
 		log.Error("Copy: %s\n", err)
-		return ERROR
+		return constants.ERROR
 	}
 	fi, err := os.Stat(orig)
 	if err != nil {
 		log.Error("Error stat-ing file: %s\n", err)
-		return ERROR
+		return constants.ERROR
 	}
 	err = ioutil.WriteFile(dest, data, fi.Mode().Perm())
 	if err != nil {
 		log.Error("unable to copy %s: %s\n", orig, err)
-		return ERROR
+		return constants.ERROR
 	}
 	log.Ok("Ok\n\n")
 
-	return OK
+	return constants.OK
 }
 
 func Delete(paths []string) int {
 	log.Info("Deleting files %s\n", paths)
-	ret := OK
+	ret := constants.OK
 	for _, p := range paths {
 		if err := os.Remove(p); err != nil {
 			log.Error("%s\n", err)
-			ret = ERROR
+			ret = constants.ERROR
 			continue
 		}
 		log.Ok("%s\n", p)
@@ -97,10 +98,10 @@ func Rename(orig, dest string) int {
 	log.Info("Renaming file %s -> %s\t", orig, dest)
 	if err := os.Rename(orig, dest); err != nil {
 		log.Error("Error removing %s", err)
-		return ERROR
+		return constants.ERROR
 	}
-	log.Log("OK\n")
-	return OK
+	log.Log("Ok\n")
+	return constants.OK
 }
 
 func MmapFile(path string) (int64, string, error) {

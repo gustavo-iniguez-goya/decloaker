@@ -12,6 +12,7 @@ import (
 	"github.com/cilium/ebpf"
 	"github.com/cilium/ebpf/link"
 	"github.com/cilium/ebpf/rlimit"
+	"github.com/gustavo-iniguez-goya/decloaker/pkg/constants"
 	"github.com/gustavo-iniguez-goya/decloaker/pkg/log"
 	"github.com/gustavo-iniguez-goya/decloaker/pkg/utils"
 )
@@ -71,23 +72,23 @@ type Task struct {
 
 func (t *Task) Get(field string) (interface{}, bool) {
 	switch field {
-	case "exe":
+	case constants.FieldExe:
 		return t.Exe, true
-	case "cmdline":
+	case constants.FieldCmdline:
 		return t.Cmdline, true
-	case "pid":
+	case constants.FieldPid:
 		return t.Pid, true
-	case "ppid":
+	case constants.FieldPPid:
 		return t.PPid, true
-	case "uid":
+	case constants.FieldUid:
 		return t.Uid, true
-	case "gid":
+	case constants.FieldGid:
 		return t.Gid, true
-	case "comm":
+	case constants.FieldComm:
 		return t.Comm, true
-	case "hostname":
+	case constants.FieldHostname:
 		return t.Hostname, true
-	case "inode":
+	case constants.FieldInode:
 		return t.Inode, true
 		//case "maps":
 		//    return t.Maps, true
@@ -112,25 +113,25 @@ type File struct {
 
 func (f *File) Get(field string) (interface{}, bool) {
 	switch field {
-	case "exe":
+	case constants.FieldExe:
 		return f.Exe, true
-	case "comm":
+	case constants.FieldComm:
 		return f.Comm, true
-	case "hostname":
+	case constants.FieldHostname:
 		return f.Hostname, true
-	case "file", "path":
+	case constants.FieldFile, constants.FieldPath:
 		return f.File, true
-	case "uid":
+	case constants.FieldUid:
 		return f.Uid, true
-	case "did":
+	case constants.FieldGid:
 		return f.Gid, true
-	case "inode":
+	case constants.FieldInode:
 		return f.Inode, true
-	case "fd":
+	case constants.FieldFd:
 		return f.Fd, true
-	case "pid":
+	case constants.FieldPid:
 		return f.Pid, true
-	case "ppid":
+	case constants.FieldPPid:
 		return f.PPid, true
 	}
 

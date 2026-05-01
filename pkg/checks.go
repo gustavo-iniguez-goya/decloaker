@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gustavo-iniguez-goya/decloaker/pkg/constants"
 	"github.com/gustavo-iniguez-goya/decloaker/pkg/log"
 )
 
@@ -15,7 +16,7 @@ func CompareFiles(listFiles bool, orig, expected map[string]os.FileInfo) int {
 
 	if len(orig) == 0 && len(expected) > 0 {
 		log.Detection("[!] WARNING: no files returned by the system command. REVIEW\n")
-		return FILES_HIDDEN
+		return constants.FILES_HIDDEN
 	}
 	for file := range expected {
 		if strings.HasPrefix(file, ourProcPath) {
@@ -34,6 +35,7 @@ func CompareFiles(listFiles bool, orig, expected map[string]os.FileInfo) int {
 		}
 
 		if statOrig, found := orig[file]; !found {
+			log.Trace("hidden file found by path: %s\n", file)
 			hidden[file] = stat
 			log.Log("\tHIDDEN: %s\n\n", file)
 			continue
@@ -63,10 +65,10 @@ func CompareFiles(listFiles bool, orig, expected map[string]os.FileInfo) int {
 		}
 	}
 
-	ret := OK
+	ret := constants.OK
 
 	if len(hidden) > 0 {
-		ret = FILES_HIDDEN
+		ret = constants.FILES_HIDDEN
 
 		log.Detection("\nHIDDEN dirs/files found:\n\n")
 		for h, stat := range hidden {
@@ -92,14 +94,16 @@ func CompareFiles(listFiles bool, orig, expected map[string]os.FileInfo) int {
 // CheckHiddenFiles checks differences between the ls output and the output of
 // Go's standard lib.
 func CheckHiddenFiles(paths []string, tool string, deep bool) int {
-	ret := OK
+	ret := constants.OK
 	log.Info("Checking hidden files with \"%s\" %q\n\n", tool, paths)
 
 	for _, p := range paths {
 		orig, expected := ListFiles(p, tool, deep)
 		r := CompareFiles(true, orig, expected)
+		orig = nil
+		expected = nil
 
-		if r != OK {
+		if r != constants.OK {
 			ret = r
 		}
 	}

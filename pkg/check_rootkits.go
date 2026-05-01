@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"strconv"
 
+	"github.com/gustavo-iniguez-goya/decloaker/pkg/constants"
 	"github.com/gustavo-iniguez-goya/decloaker/pkg/ebpf"
 	"github.com/gustavo-iniguez-goya/decloaker/pkg/log"
 	"github.com/gustavo-iniguez-goya/decloaker/pkg/utils"
@@ -58,12 +59,12 @@ func CheckHiddenLKM() int {
 	retT := CheckTracingModules()
 	retP := CheckProcModules(tainted)
 
-	if retT != OK || retP != OK {
+	if retT != constants.OK || retP != constants.OK {
 		return retT
 	}
 	log.Ok("no kernel modules hidden found\n")
 
-	return OK
+	return constants.OK
 }
 
 func hiddenFromProc(procModules []byte, msg, kmod string) int {
@@ -72,9 +73,9 @@ func hiddenFromProc(procModules []byte, msg, kmod string) int {
 			[]log.Fields{
 				{Key: "kmod", Value: kmod},
 			})
-		return KMOD_HIDDEN
+		return constants.KMOD_HIDDEN
 	}
-	return OK
+	return constants.OK
 }
 
 func CheckTainted() bool {
@@ -110,7 +111,7 @@ func CheckProcModules(tainted bool) int {
 	log.Info("Checking loaded kernel modules\n")
 
 	tainted_kmods := false
-	ret := OK
+	ret := constants.OK
 	kmodList := make(map[string]fs.DirEntry)
 	procModules, _ := ioutil.ReadFile(ProcModules)
 	procKallsyms, _ := ioutil.ReadFile(ProcKallsyms)
@@ -136,16 +137,16 @@ func CheckProcModules(tainted bool) int {
 		kmodList[k.Name()] = k
 
 		hiddenFrom := []string{}
-		if hiddenFromProc(procModules, "\n\tWARNING: \"%s\" kmod HIDDEN from /proc/modules\n", k.Name()) != OK {
+		if hiddenFromProc(procModules, "\n\tWARNING: \"%s\" kmod HIDDEN from /proc/modules\n", k.Name()) != constants.OK {
 			hiddenFrom = append(hiddenFrom, ProcModules)
-			ret = KMOD_HIDDEN
+			ret = constants.KMOD_HIDDEN
 		}
-		if hiddenFromProc(procKallsyms, "\n\tWARNING: \"%s\" kmod HIDDEN from /proc/kallsyms\n", k.Name()) != OK {
+		if hiddenFromProc(procKallsyms, "\n\tWARNING: \"%s\" kmod HIDDEN from /proc/kallsyms\n", k.Name()) != constants.OK {
 			hiddenFrom = append(hiddenFrom, ProcKallsyms)
-			ret = KMOD_HIDDEN
+			ret = constants.KMOD_HIDDEN
 		}
 		if len(hiddenFrom) > 0 {
-			ret = KMOD_HIDDEN
+			ret = constants.KMOD_HIDDEN
 		}
 
 	}
@@ -163,25 +164,25 @@ func CheckProcModules(tainted bool) int {
 				})
 			log.Log("\t%q\n", kmod)
 			hiddenFrom = append(hiddenFrom, SysModule)
-			ret = KMOD_HIDDEN
+			ret = constants.KMOD_HIDDEN
 		}
-		if hiddenFromProc(procModules, "\n\tWARNING (eBPF): \"%s\" kmod HIDDEN from /proc/modules\n", kname) != OK {
+		if hiddenFromProc(procModules, "\n\tWARNING (eBPF): \"%s\" kmod HIDDEN from /proc/modules\n", kname) != constants.OK {
 			log.Log("\t%q\n", kmod)
 			hiddenFrom = append(hiddenFrom, ProcModules)
-			ret = KMOD_HIDDEN
+			ret = constants.KMOD_HIDDEN
 		}
-		if hiddenFromProc(procKallsyms, "\n\tWARNING (eBPF): \"%s\" kmod HIDDEN from /proc/kallsyms\n", kname) != OK {
+		if hiddenFromProc(procKallsyms, "\n\tWARNING (eBPF): \"%s\" kmod HIDDEN from /proc/kallsyms\n", kname) != constants.OK {
 			hiddenFrom = append(hiddenFrom, ProcKallsyms)
-			ret = KMOD_HIDDEN
+			ret = constants.KMOD_HIDDEN
 		}
 
 		if len(hiddenFrom) > 0 {
 			log.Log("\t%q\n", kmod)
-			ret = KMOD_HIDDEN
+			ret = constants.KMOD_HIDDEN
 		}
 	}
 
-	if ret != OK {
+	if ret != constants.OK {
 		log.Log("\n")
 	}
 
@@ -196,7 +197,7 @@ func CheckProcModules(tainted bool) int {
 func CheckTracingModules() int {
 	log.Info("Checking kernel modules hooks\n")
 
-	ret := OK
+	ret := constants.OK
 	procModules, _ := ioutil.ReadFile(ProcModules)
 	procKallsyms, _ := ioutil.ReadFile(ProcKallsyms)
 	kmodList := make(map[string]struct{})
@@ -230,12 +231,12 @@ func CheckTracingModules() int {
 
 			log.Debug(" checking %s\n", ProcModules)
 			hiddenFrom := []string{}
-			if hiddenFromProc(procModules, "\tWARNING (tracing): possible kmod hidden from /proc/modules: %v\n", k[1]) != OK {
+			if hiddenFromProc(procModules, "\tWARNING (tracing): possible kmod hidden from /proc/modules: %v\n", k[1]) != constants.OK {
 				kmodList[k[1]] = struct{}{}
 				hiddenFrom = append(hiddenFrom, ProcModules)
 			}
 			log.Debug(" checking %s\n", ProcKallsyms)
-			if hiddenFromProc(procKallsyms, "\tWARNING (tracing): possible kmod hidden from /proc/kallsyms: %v\n", k[1]) != OK {
+			if hiddenFromProc(procKallsyms, "\tWARNING (tracing): possible kmod hidden from /proc/kallsyms: %v\n", k[1]) != constants.OK {
 				kmodList[k[1]] = struct{}{}
 				hiddenFrom = append(hiddenFrom, ProcKallsyms)
 			}
@@ -256,7 +257,7 @@ func CheckTracingModules() int {
 
 	if len(kmodList) > 0 {
 		log.Log("\n")
-		ret = KMOD_HIDDEN
+		ret = constants.KMOD_HIDDEN
 	}
 
 	return ret

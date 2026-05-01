@@ -5,6 +5,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/gustavo-iniguez-goya/decloaker/pkg/constants"
 	"github.com/gustavo-iniguez-goya/decloaker/pkg/log"
 	sys "github.com/gustavo-iniguez-goya/decloaker/pkg/sys"
 )
@@ -12,7 +13,7 @@ import (
 // XXX: a file may have changed when reading it with cat and later with syscalls.
 func CheckHiddenContent(paths []string) int {
 	//Info("checking hidden files under %v\n", paths)
-	ret := OK
+	ret := constants.OK
 
 	for _, f := range paths {
 		hiddenFound := false
@@ -42,10 +43,10 @@ func CheckHiddenContent(paths []string) int {
 				log.Detection("\n=== CONTENT WARNING (read) %s ===\n", f)
 				log.Detection("size differs (content: %d, stat.size: %d, symlink: %v), %s\n", expectedSize, stat.Size(), stat.Mode(), f)
 				log.Detection("====================================\n")
-				ret = CONTENT_HIDDEN
+				ret = constants.CONTENT_HIDDEN
 			}
 			ret = CompareContent(f, fileContent[f], expected, fileSize, expectedSize, "read")
-			hiddenFound = ret == CONTENT_HIDDEN
+			hiddenFound = ret == constants.CONTENT_HIDDEN
 		}
 
 		// don't mmap /proc or /dev/shm
@@ -64,15 +65,15 @@ func CheckHiddenContent(paths []string) int {
 				log.Detection("\n=== CONTENT WARNING (mmap) %s ===\n", f)
 				log.Detection("size differs (content: %d, mmap.size: %d, %s)\n", expectedSize, mmSize, f)
 				log.Log("====================================\n")
-				ret = CONTENT_HIDDEN
+				ret = constants.CONTENT_HIDDEN
 			}
 
 			ret = CompareContent(f, mData, expected, int(mmSize), expectedSize, "mmap")
-			hiddenFound = ret == CONTENT_HIDDEN
+			hiddenFound = ret == constants.CONTENT_HIDDEN
 		}
 	}
 
-	if ret == OK {
+	if ret == constants.OK {
 		log.Info("no hidden content found\n\n")
 	}
 
@@ -80,18 +81,18 @@ func CheckHiddenContent(paths []string) int {
 }
 
 func CompareContent(file, orig, expected string, origSize, expectedSize int, tag string) int {
-	ret := OK
+	ret := constants.OK
 
 	if expected != orig {
-		ret = FILES_HIDDEN
+		ret = constants.FILES_HIDDEN
 		log.Detection("\n=== CONTENT WARNING (%s) %s ===\n", tag, file)
 		log.Detection("cat content (%d bytes):\n %v\n", origSize, orig)
 		log.Detection("-----------------------------------------------------------------\n")
 		log.Detection("Go read content (%d bytes):\n %s\n", expectedSize, expected)
 		log.Detection("====================================\n")
-		ret = CONTENT_HIDDEN
+
+		ret = constants.FILES_HIDDEN
 	}
 
 	return ret
-
 }

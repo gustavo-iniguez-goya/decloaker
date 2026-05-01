@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/evilsocket/opensnitch/daemon/netlink"
+	"github.com/gustavo-iniguez-goya/decloaker/pkg/constants"
 	"github.com/gustavo-iniguez-goya/decloaker/pkg/log"
 	"github.com/gustavo-iniguez-goya/decloaker/pkg/sys"
 	"github.com/gustavo-iniguez-goya/decloaker/pkg/utils"
@@ -72,7 +73,7 @@ func CheckHiddenSockets(protos []string) int {
 	hiddenCount := len(hiddenConns)
 	if hiddenCount == 0 {
 		log.Info("No hidden sockets found.\n")
-		return OK
+		return constants.OK
 	}
 
 	log.Detection("[!] %d HIDDEN connections found\n", hiddenCount)
@@ -92,5 +93,5 @@ func CheckHiddenSockets(protos []string) int {
 		)
 	}
 
-	return CONN_HIDDEN
+	return constants.CONN_HIDDEN
 }

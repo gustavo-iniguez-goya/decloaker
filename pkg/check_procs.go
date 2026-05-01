@@ -12,6 +12,7 @@ import (
 
 	//"github.com/gustavo-iniguez-goya/decloaker/pkg/disk"
 	"github.com/gustavo-iniguez-goya/decloaker/pkg/config"
+	"github.com/gustavo-iniguez-goya/decloaker/pkg/constants"
 	"github.com/gustavo-iniguez-goya/decloaker/pkg/ebpf"
 	"github.com/gustavo-iniguez-goya/decloaker/pkg/log"
 	"github.com/gustavo-iniguez-goya/decloaker/pkg/sys"
@@ -101,7 +102,7 @@ func printBinaryInfo(tgid, pid int) string {
 }
 
 func checkOtherMethods(nlTasks *taskstats.Client, pid int) (string, int) {
-	ret := OK
+	ret := constants.OK
 	exe := ""
 	procPath := fmt.Sprint(ProcPrefix, pid)
 
@@ -121,7 +122,7 @@ func checkOtherMethods(nlTasks *taskstats.Client, pid int) (string, int) {
 					{Key: "method", Value: MethodTaskStats},
 					{Key: "pid", Value: pid},
 				})
-			ret = PROC_HIDDEN
+			ret = constants.PROC_HIDDEN
 		}
 	}
 	if statWorked {
@@ -131,7 +132,7 @@ func checkOtherMethods(nlTasks *taskstats.Client, pid int) (string, int) {
 				{Key: "pid", Value: pid},
 			})
 		PrintStat([]string{procPath})
-		ret = PROC_HIDDEN
+		ret = constants.PROC_HIDDEN
 	}
 	if chdirWorked {
 		log.Event(log.DETECTION, log.CatHiddenPid, "\tWARNING: hidden PID confirmed via %s: %d\n",
@@ -139,7 +140,7 @@ func checkOtherMethods(nlTasks *taskstats.Client, pid int) (string, int) {
 				{Key: "method", Value: MethodChdir},
 				{Key: "pid", Value: pid},
 			})
-		ret = PROC_HIDDEN
+		ret = constants.PROC_HIDDEN
 
 		cwd, _ := os.Getwd()
 		log.Trace("checkOtherMethods, cwd: %s\n", cwd)
@@ -164,7 +165,7 @@ func checkOtherMethods(nlTasks *taskstats.Client, pid int) (string, int) {
 }
 
 func bruteForcePids(nlTasks *taskstats.Client, expected map[string]os.FileInfo, maxPid int) int {
-	ret := OK
+	ret := constants.OK
 
 	hiddenProcs := make(map[int]string)
 	pidMaxTmp, _ := os.ReadFile(ProcPidMax)
@@ -229,10 +230,10 @@ func bruteForcePids(nlTasks *taskstats.Client, expected map[string]os.FileInfo, 
 				{Key: "cmdline", Value: strings.TrimRight(string(cmdline), "\x00")},
 			})
 
-		ret = PROC_HIDDEN
+		ret = constants.PROC_HIDDEN
 	}
 
-	if len(hiddenProcs) == 0 && ret == OK {
+	if len(hiddenProcs) == 0 && ret == constants.OK {
 		log.Info("No hidden processes found using brute force\n\n")
 	}
 
@@ -241,7 +242,7 @@ func bruteForcePids(nlTasks *taskstats.Client, expected map[string]os.FileInfo, 
 
 // CheckSuspiciousProcs returns a list of suspicious tasks and why they have been flagged.
 func CheckSuspiciousProcs(cfg *config.PatternsConfig) map[string]ebpf.Task {
-	ret := OK
+	ret := constants.OK
 	suspicious := make(map[string]ebpf.Task)
 
 	liveTasks := ebpf.GetPidList("")
@@ -251,7 +252,7 @@ func CheckSuspiciousProcs(cfg *config.PatternsConfig) map[string]ebpf.Task {
 	}
 
 	for _, t := range liveTasks {
-		ret = OK
+		ret = constants.OK
 		status, bin, _ := getPidInfo(fmt.Sprint(ProcPrefix, t.Pid))
 
 		msg := ""
@@ -277,12 +278,12 @@ func CheckSuspiciousProcs(cfg *config.PatternsConfig) map[string]ebpf.Task {
 
 		if len(status) > 0 && strings.Compare(status[PidPPID][1], "2") == 0 {
 			msg = fmt.Sprintf("\t\nWARNING (%s): ppid == 2?\n", t.Pid)
-			ret = SUSPICIOUS_PROC
+			ret = constants.SUSPICIOUS_PROC
 		}
 
 		if match := cfg.MatchProcess(&t); match != nil {
 			msg += fmt.Sprintf("\t\nWARNING (%s): %s\n", t.Pid, match.Description)
-			ret = SUSPICIOUS_PROC
+			ret = constants.SUSPICIOUS_PROC
 			log.Event(log.DETECTION, "hidden_pid", "hidden process found via brute force",
 				[]log.Fields{
 					{Key: "pid", Value: t.Pid},
@@ -292,7 +293,7 @@ func CheckSuspiciousProcs(cfg *config.PatternsConfig) map[string]ebpf.Task {
 					{Key: "method", Value: MethodBruteForce},
 				})
 		}
-		if ret == SUSPICIOUS_PROC {
+		if ret == constants.SUSPICIOUS_PROC {
 			suspicious[msg] = t
 		}
 	}
@@ -302,7 +303,7 @@ func CheckSuspiciousProcs(cfg *config.PatternsConfig) map[string]ebpf.Task {
 
 // CheckBindMounts looks for PIDs hidden with bind mounts.
 func CheckBindMounts() int {
-	ret := OK
+	ret := constants.OK
 	printPid := func(procPathB []byte) {
 		procPath := string(procPathB)
 		status, exe, err := getPidInfo(procPath)
@@ -346,7 +347,7 @@ func CheckBindMounts() int {
 	} else {
 		mountsRe := regexp.MustCompile(`\/proc\/[0-9]+`)
 		if matches := mountsRe.FindAll(mounts, -1); matches != nil {
-			ret = PID_BIND_MOUNT
+			ret = constants.PID_BIND_MOUNT
 			for n, m := range matches {
 				log.Detection("%d - WARNING, pid hidden under another pid (mount): %s\n", n, m)
 				printPid(m)
@@ -360,7 +361,7 @@ func CheckBindMounts() int {
 
 func CheckHiddenProcsCgroups(nlTasks *taskstats.Client, expected map[string]os.FileInfo) int {
 	log.Info("Checking hidden processes via cgroups:\n\n")
-	ret := OK
+	ret := constants.OK
 
 	cgroups := ReadDir("/sys/fs/cgroup/", true)
 	for path := range cgroups {
@@ -383,7 +384,7 @@ func CheckHiddenProcsCgroups(nlTasks *taskstats.Client, expected map[string]os.F
 			}
 			iPid, _ := strconv.Atoi(pid)
 			checkOtherMethods(nlTasks, iPid)
-			ret = PROC_HIDDEN
+			ret = constants.PROC_HIDDEN
 
 			fields := []log.Fields{
 				{Key: "method", Value: MethodCgroup},
@@ -412,8 +413,8 @@ func CheckHiddenProcsCgroups(nlTasks *taskstats.Client, expected map[string]os.F
 					{Key: "tgid", Value: pidStats.TGID},
 					{Key: "uid", Value: pidStats.UID},
 					{Key: "gid", Value: pidStats.GID},
-					{Key: "exe_dev", Value: pidStats.ExeDev},
-					{Key: "exe_inode", Value: pidStats.ExeInode},
+					{Key: "dev", Value: pidStats.ExeDev},
+					{Key: "inode", Value: pidStats.ExeInode},
 				}
 				log.Event(
 					log.DETECTION,
@@ -433,8 +434,8 @@ func CheckHiddenProcs(doBruteForce bool, maxPid int) int {
 	log.Info("Checking hidden processes:\n\n")
 
 	nlTasks, _ := taskstats.New()
-	ret := OK
-	retBrute := OK
+	ret := constants.OK
+	retBrute := constants.OK
 	retBind := CheckBindMounts()
 
 	orig, expected := ListFiles("/proc", sys.CmdLs, false)
@@ -463,7 +464,7 @@ func CheckHiddenProcs(doBruteForce bool, maxPid int) int {
 				})
 			PrintStat([]string{procPath})
 		}
-		ret = PROC_HIDDEN
+		ret = constants.PROC_HIDDEN
 	}
 
 	if len(liveTasks) == 0 {
@@ -474,16 +475,16 @@ func CheckHiddenProcs(doBruteForce bool, maxPid int) int {
 		retBrute = bruteForcePids(nlTasks, expected, maxPid)
 	}
 
-	if ret != OK || retBind != OK || retBrute != OK {
+	if ret != constants.OK || retBind != constants.OK || retBrute != constants.OK {
 		log.Warn("hidden processes found.\n\n")
-		if retBind != OK {
+		if retBind != constants.OK {
 			ret = retBind
 		}
-		if retBrute != OK {
+		if retBrute != constants.OK {
 			ret = retBrute
 		}
 	}
-	if ret == OK {
+	if ret == constants.OK {
 		log.Info("No hidden processes found. You can try it with \"decloaker scan hidden-procs --brute-force\"\n\n")
 	}
 

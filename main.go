@@ -29,6 +29,7 @@ import (
 	"github.com/evilsocket/opensnitch/daemon/netlink"
 	"github.com/gustavo-iniguez-goya/decloaker/pkg"
 	"github.com/gustavo-iniguez-goya/decloaker/pkg/config"
+	"github.com/gustavo-iniguez-goya/decloaker/pkg/constants"
 	disk "github.com/gustavo-iniguez-goya/decloaker/pkg/disk"
 	"github.com/gustavo-iniguez-goya/decloaker/pkg/ebpf"
 	dlog "github.com/gustavo-iniguez-goya/decloaker/pkg/log"
@@ -62,7 +63,7 @@ func main() {
 
 	ebpf.ConfigureIters(CLI.PinKernelLists)
 
-	var ret = decloaker.OK
+	var ret = constants.OK
 
 	switch ctx.Command() {
 	//case "log <format> <output>":
@@ -146,7 +147,7 @@ func main() {
 	default:
 		fmt.Println("No command specified, showing help:", ctx.Command())
 		ctx.PrintUsage(true)
-		ret = decloaker.ERROR
+		ret = constants.ERROR
 	}
 
 	ebpf.CleanupIters()
@@ -173,7 +174,7 @@ func getCliConfig(cliConfig string) *config.PatternsConfig {
 
 func scanHiddenFiles() int {
 	if CLI.Scan.WithBuiltinPaths {
-		paths := utils.ExpandPaths(decloaker.DefaultHiddenFilesPaths)
+		paths := utils.ExpandPaths(constants.DefaultHiddenFilesPaths)
 		if cfg != nil {
 			paths = utils.ExpandPaths(cfg.Detection.DefaultHiddenPaths.Files)
 		}
@@ -191,7 +192,7 @@ func scanHiddenFiles() int {
 
 func scanHiddenContent() int {
 	if CLI.Scan.WithBuiltinPaths {
-		paths := utils.ExpandPaths(decloaker.DefaultHiddenContentPaths)
+		paths := utils.ExpandPaths(constants.DefaultHiddenContentPaths)
 		if cfg != nil {
 			paths = utils.ExpandPaths(cfg.Detection.DefaultHiddenPaths.Content)
 		}
@@ -212,7 +213,7 @@ func scanSuspiciousProcs() int {
 	suspicious := decloaker.CheckSuspiciousProcs(cliCfg)
 	if len(suspicious) == 0 {
 		dlog.Info("no suspicious processes found\n\n")
-		return decloaker.OK
+		return constants.OK
 	}
 	for reason, t := range suspicious {
 		dlog.Detection("%s\n\texe: %s\n\tcomm: %s\n\tcmdline: %s\n\thostname: %s\n\tUID: %s\n\tGID: %s\n\tPID: %s\n\tPPID: %s\n",
@@ -220,7 +221,7 @@ func scanSuspiciousProcs() int {
 			t.Exe, t.Comm, t.Cmdline, t.Hostname, t.Uid, t.Gid, t.Pid, t.PPid)
 	}
 
-	return decloaker.SUSPICIOUS_PROC
+	return constants.SUSPICIOUS_PROC
 }
 
 func printNetstat() {
@@ -292,7 +293,7 @@ func printLs(showExtendedInfo bool) {
 }
 
 func diskLs() int {
-	ret := decloaker.OK
+	ret := constants.OK
 
 	expected := disk.ReadDir(CLI.Disk.Dev, CLI.Disk.Partition, CLI.Disk.Ls.Paths[0], diskfs.ReadOnly, CLI.Disk.Ls.Recursive)
 	for file, stat := range expected {
@@ -341,25 +342,25 @@ func diskFind() {
 }
 
 func diskMv() int {
-	ret := decloaker.OK
+	ret := constants.OK
 
 	err := disk.Mv(CLI.Disk.Dev, CLI.Disk.Partition, CLI.Disk.Cp.Orig, CLI.Disk.Cp.Dest, diskfs.ReadOnly)
 	if err != nil {
 		dlog.Error("%s\n", err)
-		ret = decloaker.ERROR
+		ret = constants.ERROR
 	} else {
-		dlog.Ok("OK\n")
+		dlog.Ok("Ok\n")
 	}
 
 	return ret
 }
 
 func diskCat() int {
-	ret := decloaker.OK
+	ret := constants.OK
 	content, err := disk.ReadFile(CLI.Disk.Dev, CLI.Disk.Partition, CLI.Disk.Cat.Path)
 	if err != nil {
 		dlog.Error("%s\n", err)
-		ret = decloaker.ERROR
+		ret = constants.ERROR
 	} else {
 		dlog.Ok("cat %s:\n\n", CLI.Disk.Cat.Path)
 		dlog.Detection("%s", content)
@@ -376,11 +377,11 @@ func diskCat() int {
 }
 
 func diskRm() int {
-	ret := decloaker.OK
+	ret := constants.OK
 	err := disk.Rm(CLI.Disk.Dev, CLI.Disk.Partition, CLI.Disk.Rm.Paths, diskfs.ReadWrite)
 	if err != nil {
 		dlog.Error("%s\n", err)
-		ret = decloaker.ERROR
+		ret = constants.ERROR
 	} else {
 		dlog.Ok("rm %v\n\n", CLI.Disk.Rm.Paths)
 	}
@@ -389,23 +390,23 @@ func diskRm() int {
 }
 
 func diskCp() int {
-	ret := decloaker.OK
+	ret := constants.OK
 	err := disk.Cp(CLI.Disk.Dev, CLI.Disk.Partition, CLI.Disk.Cp.Orig, CLI.Disk.Cp.Dest, diskfs.ReadOnly)
 	if err != nil {
 		dlog.Error("%s\n", err)
-		ret = decloaker.ERROR
+		ret = constants.ERROR
 	} else {
-		dlog.Ok("OK\n")
+		dlog.Ok("Ok\n")
 	}
 
 	return ret
 }
 
 func diskStat() int {
-	ret := decloaker.OK
+	ret := constants.OK
 	list, err := disk.Stat(CLI.Disk.Dev, CLI.Disk.Partition, CLI.Disk.Stat.Paths, diskfs.ReadOnly)
 	if err != nil {
-		ret = decloaker.ERROR
+		ret = constants.ERROR
 		dlog.Error("%s\n", err)
 	} else {
 		for _, file := range list {

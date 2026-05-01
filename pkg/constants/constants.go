@@ -1,4 +1,4 @@
-package decloaker
+package constants
 
 // Exit codes
 const (
@@ -59,4 +59,26 @@ var (
 		"/root/*",
 		"/proc/net/*",
 	}
+)
+
+const (
+	FieldMethod = "method"
+
+	FieldExe      = "exe"
+	FieldExeDev   = "dev"
+	FieldCmdline  = "cmdline"
+	FieldComm     = "comm"
+	FieldPid      = "pid"
+	FieldPPid     = "ppid"
+	FieldTgid     = "tgid"
+	FieldUid      = "uid"
+	FieldGid      = "gid"
+	FieldInode    = "inode"
+	FieldHostname = "hostname"
+	FieldFile     = "file"
+	FieldPath     = "path"
+	FieldFd       = "fd"
+
+	FieldMountPath  = "mount_path"
+	FieldCgroupPath = "cgroup_path"
 )

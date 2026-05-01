@@ -232,7 +232,7 @@ func ReadDir(dev string, partition int, path string, openMode diskfs.OpenModeOpt
 				log.Warn("Unable to stat %s? review needed", path)
 			}
 
-			list[utils.ToAscii(e.Name())] = stat
+			list[utils.ToAscii(path+pathSeparator+e.Name())] = stat
 		}
 		return list
 	}
@@ -244,7 +244,7 @@ func ReadDir(dev string, partition int, path string, openMode diskfs.OpenModeOpt
 				if e.Name() == "." || e.Name() == ".." {
 					continue
 				}
-				p := utils.ToAscii(e.Name())
+				p := utils.ToAscii(dir + pathSeparator + e.Name())
 				info, _ := e.Info()
 				list[p] = info
 				log.Log("%v\t%d\t%s\t%s\n", info.Mode(), info.Size(), info.ModTime().Format(time.RFC3339), info.Name())

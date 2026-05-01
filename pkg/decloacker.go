@@ -189,7 +189,7 @@ func ListFiles(path string, tool string, deep bool) (map[string]os.FileInfo, map
 		}
 	}
 
-	log.Debug("Listing files with system commands ... \n")
+	log.Debug("Listing files with system commands ... (%s)\n", tool)
 	lsDirs := make(map[string]fs.FileInfo)
 	if tool == sys.CmdLs {
 		lsDirs = sys.Ls(path, args...)

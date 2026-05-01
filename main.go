@@ -21,6 +21,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -297,14 +298,14 @@ func diskLs() int {
 	for file, stat := range expected {
 		if stat == nil {
 			dlog.Log("%s\t%d\t%s\t%s\n", "---------", 0, "",
-				file)
+				filepath.Base(file))
 			continue
 		}
 		dlog.Log("%s\t%d\t%s\t%s\n",
 			stat.Mode(),
 			stat.Size(),
 			stat.ModTime().Format(time.RFC3339),
-			file)
+			filepath.Base(file))
 	}
 
 	if CLI.Disk.Ls.Compare {
@@ -327,6 +328,8 @@ func diskFind() {
 	)
 	for file, stat := range files {
 		if stat == nil {
+			dlog.Log("%s\t%d\t%s\t%s\n", "---------", 0, "",
+				file)
 			continue
 		}
 		dlog.Log("%s\t%d\t%s\t%s\n",

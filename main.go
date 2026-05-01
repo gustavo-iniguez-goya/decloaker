@@ -296,6 +296,8 @@ func diskLs() int {
 	expected := disk.ReadDir(CLI.Disk.Dev, CLI.Disk.Partition, CLI.Disk.Ls.Paths[0], diskfs.ReadOnly, CLI.Disk.Ls.Recursive)
 	for file, stat := range expected {
 		if stat == nil {
+			dlog.Log("%s\t%d\t%s\t%s\n", "---------", 0, "",
+				file)
 			continue
 		}
 		dlog.Log("%s\t%d\t%s\t%s\n",
@@ -306,7 +308,7 @@ func diskLs() int {
 	}
 
 	if CLI.Disk.Ls.Compare {
-		orig, _ := decloaker.ListFiles(CLI.Disk.Ls.Paths[0], sys.CmdFind, CLI.Disk.Ls.Recursive)
+		orig, _ := decloaker.ListFiles(CLI.Disk.Ls.Paths[0], sys.CmdLs, CLI.Disk.Ls.Recursive)
 		ret = decloaker.CompareFiles(false, orig, expected)
 	}
 

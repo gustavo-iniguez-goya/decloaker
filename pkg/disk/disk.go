@@ -51,6 +51,7 @@ func parseEntries(path string, entries []iofs.DirEntry, inode uint64, search str
 		}
 
 		pth := "/" + path + "/" + e.Name()
+		log.Debug("pth: %s\n", pth)
 		if inode > 0 {
 			info, _ := e.Info()
 			ino := info.Sys().(*syscall.Stat_t)
@@ -60,15 +61,19 @@ func parseEntries(path string, entries []iofs.DirEntry, inode uint64, search str
 			}
 		}
 		if search == "" {
+			matchCb(utils.ToAscii(pth), e)
 			continue
 		}
+
 		tmpPath := strings.ReplaceAll(pth, "/", "")
+		log.Trace("trying to match %s: %s\n", search, tmpPath)
 		matched, err := filepath.Match(search, tmpPath)
 		if err != nil {
 			log.Error("file pattern error: %s\n", err)
 			continue
 		}
 		if matched {
+			log.Trace("pattern matched %s: %s\n", search, tmpPath)
 			matchCb(utils.ToAscii(pth), e)
 			continue
 		}

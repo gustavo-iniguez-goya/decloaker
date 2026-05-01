@@ -94,7 +94,7 @@ func CheckTainted() bool {
 		mask := 1 << bit
 		if value&mask != 0 {
 			tainted = true
-			log.Event(log.DETECTION, "kernel_taint", "\t(%s) %s\n",
+			log.Event(log.DETECTION, log.CatKernelTainted, "\t(%s) %s\n",
 				[]log.Fields{
 					{Key: constants.FieldLetter, Value: t.letter},
 					{Key: constants.FieldReason, Value: t.reason},
@@ -129,7 +129,7 @@ func CheckProcModules(tainted bool) int {
 			continue
 		}
 		tainted_kmods = true
-		log.Event(log.DETECTION, "kernel_tainted", "tainted: %s, %s\n",
+		log.Event(log.DETECTION, log.CatKernelTainted, "tainted: %s, %s\n",
 			[]log.Fields{
 				{Key: constants.FieldKmod, Value: fmt.Sprintf("%s", k)},
 				{Key: constants.FieldFlags, Value: fmt.Sprintf("%s", tainted)},

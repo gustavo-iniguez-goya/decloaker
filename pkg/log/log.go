@@ -30,6 +30,7 @@ const (
 	CatDumpTasks             = "dump_tasks"
 	CatDumpFiles             = "dump_files"
 	CatDumpKmods             = "dump_kmods"
+	CatKernelTainted         = "kernel_tainted"
 	CatHiddenKmod            = "hidden_kmod"
 	CatHiddenPid             = "hidden_pid"
 	CatHiddenPidThread       = "hidden_pid_thread"

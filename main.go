@@ -419,10 +419,11 @@ func diskStat() int {
 
 func dumpFiles() {
 	dlog.Log("%-10s %-10s %-6s %-10s %-6s %-6s %s %-16s %s\t%s\n",
-		"Pid", "PPid", "Fd", "Inode", "UID", "GID", "Host", "Comm", "File", "Exe")
+		"Pid", "PPid", "Fd", "Inode", "UID", "GID", "Hostname", "Comm", "File", "Exe")
 	files := ebpf.GetFileList(CLI.Dump.Files.Host)
 	for _, f := range files {
-		dlog.Event(dlog.DETECTION, dlog.CatDumpFiles, "open file descriptor",
+		dlog.Event(dlog.DETECTION, dlog.CatDumpFiles,
+			"%-10s %-10s %-6s %-10s %-6s %-6s %s %-16s %s\t%s\n",
 			[]dlog.Fields{
 				{Key: "pid", Value: f.Pid},
 				{Key: "ppid", Value: f.PPid},
@@ -439,11 +440,11 @@ func dumpFiles() {
 }
 
 func dumpKmods() {
-	dlog.Log("%-20s\t%-10s\t%s\t%s\t%s\n",
+	dlog.Log("%-20s\t%-10s\t%s\t%-18s\t%s\n",
 		"Name", "Type", "Symbol", "Address", "Function")
 	kmods := ebpf.GetKmodList()
 	for _, k := range kmods {
-		dlog.Event(dlog.DETECTION, dlog.CatDumpKmods, "loaded kernel module",
+		dlog.Event(dlog.DETECTION, dlog.CatDumpKmods, "%-20s\t%-10s\t%s\t%-18s\t%s\n",
 			[]dlog.Fields{
 				{Key: "name", Value: k.Name},
 				{Key: "type", Value: k.Type},

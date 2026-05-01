@@ -125,7 +125,7 @@ func checkOtherMethods(nlTasks *taskstats.Client, pid int) (string, int) {
 		}
 	}
 	if statWorked {
-		log.Event(log.DETECTION, log.CatHiddenPid, "\tWARNING: hidden PID confirmed via Stat: %d\n",
+		log.Event(log.DETECTION, log.CatHiddenPid, "\tWARNING: hidden PID confirmed via %s: %d\n",
 			[]log.Fields{
 				{Key: "method", Value: MethodStat},
 				{Key: "pid", Value: pid},
@@ -149,7 +149,7 @@ func checkOtherMethods(nlTasks *taskstats.Client, pid int) (string, int) {
 
 	statExe := Stat([]string{procPath})
 	statExeWorked := len(statExe) > 0
-	if statExeWorked {
+	if statExeWorked && !statWorked {
 		PrintStat([]string{procPath})
 	}
 	exe, _ = utils.ReadlinkEscaped(procPath)

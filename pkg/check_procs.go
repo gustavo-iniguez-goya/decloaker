@@ -284,7 +284,7 @@ func CheckSuspiciousProcs(cfg *config.PatternsConfig) map[string]ebpf.Task {
 		if match := cfg.MatchProcess(&t); match != nil {
 			msg += fmt.Sprintf("\t\nWARNING (%s): %s\n", t.Pid, match.Description)
 			ret = constants.SUSPICIOUS_PROC
-			log.Event(log.DETECTION, "hidden_pid", "hidden process found via brute force",
+			log.Event(log.DETECTION, log.CatHiddenPid, "hidden process found via brute force",
 				[]log.Fields{
 					{Key: constants.FieldPid, Value: t.Pid},
 					{Key: constants.FieldExe, Value: exe},
@@ -456,7 +456,7 @@ func CheckHiddenProcs(doBruteForce bool, maxPid int) int {
 
 		statInf := Stat([]string{procPath})
 		if len(statInf) > 0 {
-			log.Event(log.DETECTION, "hidden_pid", "hidden PID confirmed via %s (eBPF): %s, %s\n\n",
+			log.Event(log.DETECTION, log.CatHiddenPid, "hidden PID confirmed via %s (eBPF): %s, %s\n\n",
 				[]log.Fields{
 					{Key: constants.FieldMethod, Value: MethodStat},
 					{Key: constants.FieldPid, Value: t.Pid},

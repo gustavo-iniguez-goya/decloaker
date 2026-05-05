@@ -6,7 +6,7 @@ require (
 	github.com/alecthomas/kong v1.12.1
 	github.com/diskfs/go-diskfs v1.7.0
 	github.com/evilsocket/opensnitch/daemon v0.0.0-20250924105016-cb2feeb6a367
-	github.com/gustavo-iniguez-goya/go-diskfs v0.0.0-20260426195200-1eb5cf82c5b6
+	github.com/gustavo-iniguez-goya/go-diskfs v0.0.0-20260504235644-5e2e81cd9a7f
 	github.com/vishvananda/netlink v1.3.1
 	golang.org/x/sys v0.39.0
 	gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c

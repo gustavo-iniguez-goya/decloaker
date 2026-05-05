@@ -23,6 +23,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/alecthomas/kong"
@@ -301,8 +302,14 @@ func diskLs() int {
 				filepath.Base(path))
 			return
 		}
-		dlog.Log("%s\t%d\t%s\t%s\n",
+		ino := stat.Sys().(*syscall.Stat_t)
+		owner := "- - -"
+		if ino != nil {
+			owner = fmt.Sprint(ino.Uid, " ", ino.Gid, " ", ino.Ino)
+		}
+		dlog.Log("%s\t%s\t%d\t%s\t%s\n",
 			stat.Mode(),
+			owner,
 			stat.Size(),
 			stat.ModTime().Format(time.RFC3339),
 			filepath.Base(path))
@@ -312,7 +319,11 @@ func diskLs() int {
 		}
 		files := sys.Find("", []string{path, "-maxdepth", "0"}...)
 		if _, found := files[path]; !found {
-			dlog.Detection("HIDDEN: %s\n", path)
+			dlog.Event(dlog.DETECTION, dlog.CatHiddenFile,
+				"HIDDEN: %s\n",
+				[]dlog.Fields{
+					{Key: constants.FieldPath, Value: path},
+				})
 		}
 
 	}
@@ -329,9 +340,14 @@ func diskFind() {
 				path)
 			return
 		}
-		//ino := info.Sys().(*syscall.Stat_t)
-		dlog.Log("%s\t%d\t%s\t%s\n",
+		ino := stat.Sys().(*syscall.Stat_t)
+		owner := "- - -"
+		if ino != nil {
+			owner = fmt.Sprint(ino.Uid, " ", ino.Gid, " ", ino.Ino)
+		}
+		dlog.Log("%s\t%s\t%d\t%s\t%s\n",
 			stat.Mode(),
+			owner,
 			stat.Size(),
 			stat.ModTime().Format(time.RFC3339),
 			path)
@@ -341,7 +357,11 @@ func diskFind() {
 		}
 		files := sys.Find("", []string{path, "-maxdepth", "0"}...)
 		if _, found := files[path]; !found {
-			dlog.Detection("HIDDEN: %s\n", path)
+			dlog.Event(dlog.DETECTION, dlog.CatHiddenFile,
+				"HIDDEN: %s\n",
+				[]dlog.Fields{
+					{Key: constants.FieldPath, Value: path},
+				})
 		}
 	}
 

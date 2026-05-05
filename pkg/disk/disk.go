@@ -42,6 +42,29 @@ func normalizePath(path string) string {
 	return path
 }
 
+func copyFile(fs filesystem.FileSystem, orig, dest string) error {
+	var err error
+	var fd filesystem.File
+	fd, err = fs.OpenFile(orig, os.O_RDONLY)
+	if err != nil {
+		return fmt.Errorf("ext4.OpenFile() %s", err)
+	}
+	defer fd.Close()
+
+	log.Trace("copying file using regular methods")
+	out, err := os.Create(dest)
+	if err != nil {
+		return fmt.Errorf("os.Create() %s", err)
+	}
+	defer out.Close()
+
+	if _, err = io.Copy(out, fd); err != nil {
+		return fmt.Errorf("io.Copy() %s", err)
+	}
+	err = out.Sync()
+	return err
+}
+
 func parseEntries(path string, entries []iofs.DirEntry, inode uint64, search string, matchCb func(path string, e iofs.DirEntry)) {
 	log.Trace("parseEntries %s, inode=%d, search=%s\n", path, inode, search)
 	for _, e := range entries {
@@ -271,7 +294,7 @@ func ReadDir(
 }
 
 // https://pkg.go.dev/github.com/diskfs/go-diskfs@v1.7.0/filesystem#FileSystem
-func Cp(dev string, partition int, orig, dest string, openMode diskfs.OpenModeOption) error {
+func Cp(dev string, partition int, orig, dest string, recursive bool, openMode diskfs.OpenModeOption) error {
 	disk, err := diskfs.Open(
 		dev,
 		diskfs.WithOpenMode(openMode),
@@ -287,23 +310,23 @@ func Cp(dev string, partition int, orig, dest string, openMode diskfs.OpenModeOp
 	}
 	defer fs.Close()
 
-	var fd filesystem.File
-	fd, err = fs.OpenFile(orig, os.O_RDONLY)
-	if err != nil {
-		return fmt.Errorf("ext4.OpenFile() %s", err)
+	if !recursive {
+		err = copyFile(fs, orig, dest)
+		return err
 	}
-	defer fd.Close()
-
-	out, err := os.Create(dest)
-	if err != nil {
-		return fmt.Errorf("os.Create() %s", err)
+	tempOrig := normalizePath(orig)
+	entries, err := fs.ReadDir(tempOrig)
+	for _, e := range entries {
+		fmt.Printf("-> %s/%s\n", tempOrig, utils.ToAscii(e.Name()))
+		er := copyFile(fs,
+			utils.ToAscii(tempOrig+"/"+e.Name()),
+			utils.ToAscii(dest+"/"+e.Name()),
+		)
+		if er != nil {
+			err = er
+			log.Error("copy error: %s\n", err)
+		}
 	}
-	defer out.Close()
-
-	if _, err = io.Copy(out, fd); err != nil {
-		return fmt.Errorf("io.Copy() %s", err)
-	}
-	err = out.Sync()
 
 	return err
 }

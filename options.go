@@ -84,8 +84,9 @@ var CLI struct {
 			Recursive bool     `short:"r" help:"Enable deep scanning."`
 		} `cmd:"" help:"List directories and files by reading directly from the disk device"`
 		Cp struct {
-			Orig string `arg:"" help:"Origin file to copy." required:"" name:"orig"`
-			Dest string `arg:"" help:"Destination file." required:"" name:"dest"`
+			Orig      string `arg:"" help:"Origin file to copy." required:"" name:"orig"`
+			Dest      string `arg:"" help:"Destination file." required:"" name:"dest"`
+			Recursive bool   `short:"r" help:"copy all files of a directory (not recursively yet)"`
 		} `cmd:"" help:"Copy directories and files directly from the disk device"`
 		// hidden, not implemented in go-disks yet.
 		Mv struct {

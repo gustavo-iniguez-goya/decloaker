@@ -333,7 +333,6 @@ func diskLs() int {
 }
 
 func diskFind() {
-
 	cb := func(path string, stat os.FileInfo) {
 		if stat == nil {
 			dlog.Log("%s\t%d\t%s\t%s\n", "---------", 0, "",
@@ -427,7 +426,7 @@ func diskRm() int {
 
 func diskCp() int {
 	ret := constants.OK
-	err := disk.Cp(CLI.Disk.Dev, CLI.Disk.Partition, CLI.Disk.Cp.Orig, CLI.Disk.Cp.Dest, diskfs.ReadOnly)
+	err := disk.Cp(CLI.Disk.Dev, CLI.Disk.Partition, CLI.Disk.Cp.Orig, CLI.Disk.Cp.Dest, CLI.Disk.Cp.Recursive, diskfs.ReadOnly)
 	if err != nil {
 		dlog.Error("%s\n", err)
 		ret = constants.ERROR

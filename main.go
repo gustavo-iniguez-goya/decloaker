@@ -295,30 +295,49 @@ func printLs(showExtendedInfo bool) {
 func diskLs() int {
 	ret := constants.OK
 
-	expected := disk.ReadDir(CLI.Disk.Dev, CLI.Disk.Partition, CLI.Disk.Ls.Paths[0], diskfs.ReadOnly, CLI.Disk.Ls.Recursive)
-	for file, stat := range expected {
+	callback := func(path string, stat os.FileInfo) {
 		if stat == nil {
 			dlog.Log("%s\t%d\t%s\t%s\n", "---------", 0, "",
-				filepath.Base(file))
-			continue
+				filepath.Base(path))
+			return
 		}
 		dlog.Log("%s\t%d\t%s\t%s\n",
 			stat.Mode(),
 			stat.Size(),
 			stat.ModTime().Format(time.RFC3339),
-			filepath.Base(file))
-	}
+			filepath.Base(path))
 
-	if CLI.Disk.Ls.Compare {
-		orig, _ := decloaker.ListFiles(CLI.Disk.Ls.Paths[0], sys.CmdLs, CLI.Disk.Ls.Recursive)
-		ret = decloaker.CompareFiles(false, orig, expected)
+		if !CLI.Disk.Ls.Compare {
+			return
+		}
+		files := sys.Find("", []string{path, "-maxdepth", "0"}...)
+		if _, found := files[path]; !found {
+			dlog.Detection("HIDDEN: %s\n", path)
+		}
+
 	}
+	disk.ReadDir(CLI.Disk.Dev, CLI.Disk.Partition, CLI.Disk.Ls.Paths[0], diskfs.ReadOnly, CLI.Disk.Ls.Recursive, callback)
 
 	return ret
 }
 
 func diskFind() {
-	files := disk.Find(
+
+	cb := func(path string, stat os.FileInfo) {
+		if stat == nil {
+			dlog.Log("%s\t%d\t%s\t%s\n", "---------", 0, "",
+				path)
+			return
+		}
+		//ino := info.Sys().(*syscall.Stat_t)
+		dlog.Log("%s\t%d\t%s\t%s\n",
+			stat.Mode(),
+			stat.Size(),
+			stat.ModTime().Format(time.RFC3339),
+			path)
+	}
+
+	disk.Find(
 		CLI.Disk.Dev,
 		CLI.Disk.Partition,
 		CLI.Disk.Find.Paths[0],
@@ -326,19 +345,8 @@ func diskFind() {
 		CLI.Disk.Find.Name,
 		diskfs.ReadOnly,
 		CLI.Disk.Find.Recursive,
+		cb,
 	)
-	for file, stat := range files {
-		if stat == nil {
-			dlog.Log("%s\t%d\t%s\t%s\n", "---------", 0, "",
-				file)
-			continue
-		}
-		dlog.Log("%s\t%d\t%s\t%s\n",
-			stat.Mode(),
-			stat.Size(),
-			stat.ModTime().Format(time.RFC3339),
-			file)
-	}
 }
 
 func diskMv() int {

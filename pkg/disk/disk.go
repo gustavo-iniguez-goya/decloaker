@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	"strings"
 	"syscall"
-	"time"
 
 	"github.com/gustavo-iniguez-goya/decloaker/pkg/log"
 	"github.com/gustavo-iniguez-goya/decloaker/pkg/utils"
@@ -51,14 +50,14 @@ func parseEntries(path string, entries []iofs.DirEntry, inode uint64, search str
 		}
 
 		pth := "/" + path + "/" + e.Name()
-		log.Debug("pth: %s\n", pth)
+		info, _ := e.Info()
 		if inode > 0 {
-			info, _ := e.Info()
 			ino := info.Sys().(*syscall.Stat_t)
-			if ino.Ino == inode {
+			if ino != nil && ino.Ino == inode {
 				matchCb(utils.ToAscii(pth), e)
-				continue
 			}
+			// the user wants to search for this inode specifically, so let's stop here.
+			continue
 		}
 		if search == "" {
 			matchCb(utils.ToAscii(pth), e)
@@ -91,7 +90,7 @@ func parseEntries(path string, entries []iofs.DirEntry, inode uint64, search str
 
 }
 
-func WalkPath(fs filesystem.FileSystem, path string, sep string, callback func(string, []iofs.DirEntry)) error {
+func WalkPath(fs filesystem.FileSystem, path string, sep string, entriesCb func(string, []iofs.DirEntry)) error {
 	path = normalizePath(path)
 	log.Trace("walking dir %s\n", path)
 	entries, err := fs.ReadDir(path)
@@ -100,7 +99,7 @@ func WalkPath(fs filesystem.FileSystem, path string, sep string, callback func(s
 		return err
 	}
 
-	callback(path, entries)
+	entriesCb(path, entries)
 
 	for _, e := range entries {
 		if e.Name() == "." || e.Name() == ".." {
@@ -108,7 +107,7 @@ func WalkPath(fs filesystem.FileSystem, path string, sep string, callback func(s
 		}
 		fullPath := utils.ToAscii(path + "/" + e.Name())
 		if e.IsDir() {
-			WalkPath(fs, fullPath, sep, callback)
+			WalkPath(fs, fullPath, sep, entriesCb)
 			continue
 		}
 	}
@@ -116,26 +115,34 @@ func WalkPath(fs filesystem.FileSystem, path string, sep string, callback func(s
 	return nil
 }
 
-func Find(dev string, partition int, path string, inode uint64, search string, openMode diskfs.OpenModeOption, recursive bool) map[string]os.FileInfo {
+func Find(
+	dev string,
+	partition int,
+	path string,
+	inode uint64,
+	search string,
+	openMode diskfs.OpenModeOption,
+	recursive bool,
+	resultsCb func(pth string, stat os.FileInfo),
+) {
 	log.Debug("Find, dev=%s, partition=%d, path=%s, inode=%d, search=%s, recursive:%v\n", dev, partition, path, inode, search, recursive)
 	tempPath := normalizePath(path)
 	log.Trace("Opening path %s\n", tempPath)
 
-	list := make(map[string]os.FileInfo)
 	disk, err := diskfs.Open(
 		dev,
 		diskfs.WithOpenMode(openMode),
 	)
 	if err != nil {
 		log.Error("unable to read disk %s\n", dev)
-		return list
+		return
 	}
 	defer disk.Close()
 
 	fs, err := disk.GetFilesystem(partition)
 	if err != nil {
 		log.Error("unable to read disk partition %s, %d: %s\n", dev, partition, err)
-		return list
+		return
 	}
 	defer fs.Close()
 
@@ -143,25 +150,25 @@ func Find(dev string, partition int, path string, inode uint64, search string, o
 	stat, err := fs.Stat(tempPath)
 	if err != nil {
 		log.Error("Unable to stat path %s: %s\n", path, err)
-		return list
+		return
 	}
 	if !stat.IsDir() {
-		list[utils.ToAscii(path)] = stat
-		return list
+		resultsCb(utils.ToAscii(path), stat)
+		return
 	}
 
 	if !recursive {
 		entries, err := fs.ReadDir(tempPath)
 		if err != nil {
 			log.Error("Unable to read path %s: %s\n", path, err)
-			return list
+			return
 		}
 		parseEntries(path, entries, inode, search,
 			func(path string, e iofs.DirEntry) {
 				info, _ := e.Info()
-				list[path] = info
+				resultsCb(path, info)
 			})
-		return list
+		return
 	}
 
 	WalkPath(fs, tempPath, "",
@@ -171,57 +178,63 @@ func Find(dev string, partition int, path string, inode uint64, search string, o
 				func(p string, e iofs.DirEntry) {
 					log.Debug("Find, walked path: %s\n", path)
 					if e == nil {
-						list[p] = nil
+						resultsCb(p, nil)
 						return
 					}
 					info, _ := e.Info()
-					list[p] = info
+					resultsCb(p, info)
 				})
 		})
 	if err != nil {
 		log.Warn("Find files warning: %s\n", err)
 	}
 
-	return list
+	return
 }
 
 // functions to read files directly from the disk device.
 
-func ReadDir(dev string, partition int, path string, openMode diskfs.OpenModeOption, recursive bool) map[string]os.FileInfo {
+func ReadDir(
+	dev string,
+	partition int,
+	path string,
+	openMode diskfs.OpenModeOption,
+	recursive bool,
+	resultsCb func(string, os.FileInfo),
+) {
 	tempPath := normalizePath(path)
 	pathSeparator := getPathSeparator(path)
-	list := make(map[string]os.FileInfo)
 	disk, err := diskfs.Open(
 		dev,
 		diskfs.WithOpenMode(openMode),
 	)
 	if err != nil {
 		log.Error("unable to read disk %s\n", dev)
-		return list
+		return
 	}
 	defer disk.Close()
 
 	fs, err := disk.GetFilesystem(partition)
 	if err != nil {
 		log.Error("unable to read disk partition %s, %d: %s\n", dev, partition, err)
-		return list
+		return
 	}
 	defer fs.Close()
 
 	stat, err := fs.Stat(tempPath)
 	if err != nil {
 		log.Error("Unable to stat path %s: %s\n", tempPath, err)
-		return list
+		return
 	}
 	if !stat.IsDir() {
-		list[utils.ToAscii(pathSeparator+path)] = stat
-		return list
+		resultsCb(utils.ToAscii(pathSeparator+path), stat)
+		return
 	}
 	if !recursive {
 		entries, err := fs.ReadDir(tempPath)
 		if err != nil {
 			log.Error("Unable to read path %s: %s\n", tempPath, err)
-			return list
+			return
 		}
 		for _, e := range entries {
 			if e.Name() == "." || e.Name() == ".." {
@@ -232,9 +245,9 @@ func ReadDir(dev string, partition int, path string, openMode diskfs.OpenModeOpt
 				log.Warn("Unable to stat %s? review needed", path)
 			}
 
-			list[utils.ToAscii(path+pathSeparator+e.Name())] = stat
+			resultsCb(utils.ToAscii(path+pathSeparator+e.Name()), stat)
 		}
-		return list
+		return
 	}
 
 	WalkPath(fs, path, "",
@@ -244,10 +257,9 @@ func ReadDir(dev string, partition int, path string, openMode diskfs.OpenModeOpt
 				if e.Name() == "." || e.Name() == ".." {
 					continue
 				}
-				p := utils.ToAscii(dir + pathSeparator + e.Name())
+				p := utils.ToAscii("/" + dir + pathSeparator + e.Name())
 				info, _ := e.Info()
-				list[p] = info
-				log.Log("%v\t%d\t%s\t%s\n", info.Mode(), info.Size(), info.ModTime().Format(time.RFC3339), info.Name())
+				resultsCb(p, info)
 			}
 		})
 
@@ -255,7 +267,7 @@ func ReadDir(dev string, partition int, path string, openMode diskfs.OpenModeOpt
 		log.Warn("listDiskFiles warning: %s\n", err)
 	}
 
-	return list
+	return
 }
 
 // https://pkg.go.dev/github.com/diskfs/go-diskfs@v1.7.0/filesystem#FileSystem

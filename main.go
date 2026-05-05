@@ -335,6 +335,14 @@ func diskFind() {
 			stat.Size(),
 			stat.ModTime().Format(time.RFC3339),
 			path)
+
+		if !CLI.Disk.Find.Compare {
+			return
+		}
+		files := sys.Find("", []string{path, "-maxdepth", "0"}...)
+		if _, found := files[path]; !found {
+			dlog.Detection("HIDDEN: %s\n", path)
+		}
 	}
 
 	disk.Find(

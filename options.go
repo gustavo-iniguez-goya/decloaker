@@ -80,7 +80,7 @@ var CLI struct {
 		Partition int    `short:"p" help:"Device partition to read (0, 1, 5, ...)" name:"partition"`
 		Ls        struct {
 			Paths     []string `arg:"" help:"Paths to read." required:"" name:"paths"`
-			Compare   bool     `short:"c" help:"Compare the output against system's ls output to detect hidden files."`
+			Compare   bool     `short:"c" help:"Compare found files against system's ls output to detect hidden files."`
 			Recursive bool     `short:"r" help:"Enable deep scanning."`
 		} `cmd:"" help:"List directories and files by reading directly from the disk device"`
 		Cp struct {
@@ -108,6 +108,7 @@ var CLI struct {
 			Name      string   `short:"n" help:"Find files with this pattern."`
 			Inode     uint64   `short:"i" help:"Look for this inode."`
 			Recursive bool     `short:"r" default:"true" help:"Enable deep scanning."`
+			Compare   bool     `short:"c" help:"Compare files found against system's ls output to detect hidden files."`
 		} `cmd:"" help:"Find files in a disk device."`
 	} `cmd:"" help:"Read files directly from the disk device."`
 

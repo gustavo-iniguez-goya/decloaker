@@ -78,6 +78,8 @@ const (
 	FieldFile     = "file"
 	FieldPath     = "path"
 	FieldFd       = "fd"
+	FieldTime     = "time"
+	FieldDate     = "date"
 
 	FieldMountPath  = "mount_path"
 	FieldCgroupPath = "cgroup_path"
@@ -93,6 +95,8 @@ const (
 	FieldReason = "reason"
 	FieldFlags  = "flags"
 
+	FieldMode            = "mode"
+	FieldSize            = "size"
 	FieldOriginalSize    = "original_size"
 	FieldOriginalContent = "original_content"
 	FieldExpectedSize    = "expected_size"

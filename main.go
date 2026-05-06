@@ -302,8 +302,11 @@ func diskLs() int {
 				filepath.Base(path))
 			return
 		}
-		ino := stat.Sys().(*syscall.Stat_t)
 		owner := "- - -"
+		uid := -1
+		gid := -1
+		inumber := -1
+		ino := stat.Sys().(*syscall.Stat_t)
 		if ino != nil {
 			owner = fmt.Sprint(ino.Uid, " ", ino.Gid, " ", ino.Ino)
 		}
@@ -320,8 +323,14 @@ func diskLs() int {
 		files := sys.Find("", []string{path, "-maxdepth", "0"}...)
 		if _, found := files[path]; !found {
 			dlog.Event(dlog.DETECTION, dlog.CatHiddenFile,
-				"HIDDEN: %s\n",
+				"HIDDEN: %s  %d %d\t%d\t%d\t%s\t%s\n",
 				[]dlog.Fields{
+					{Key: constants.FieldMode, Value: fmt.Sprint(stat.Mode())},
+					{Key: constants.FieldUid, Value: uid},
+					{Key: constants.FieldGid, Value: gid},
+					{Key: constants.FieldInode, Value: inumber},
+					{Key: constants.FieldSize, Value: stat.Size()},
+					{Key: constants.FieldTime, Value: stat.ModTime().Format(time.RFC822)},
 					{Key: constants.FieldPath, Value: path},
 				})
 		}
@@ -339,11 +348,11 @@ func diskFind() {
 				path)
 			return
 		}
-		ino := stat.Sys().(*syscall.Stat_t)
 		owner := "- - -"
 		uid := -1
 		gid := -1
 		inumber := -1
+		ino := stat.Sys().(*syscall.Stat_t)
 		if ino != nil {
 			uid = int(ino.Uid)
 			gid = int(ino.Gid)
@@ -363,7 +372,7 @@ func diskFind() {
 		files := sys.Find("", []string{path, "-maxdepth", "0"}...)
 		if _, found := files[path]; !found {
 			dlog.Event(dlog.DETECTION, dlog.CatHiddenFile,
-				"HIDDEN: %s\t%d %d\t%d\t%d\t%s\t%s\n",
+				"HIDDEN: %s  %d %d\t%d\t%d\t%s\t%s\n",
 				[]dlog.Fields{
 					{Key: constants.FieldMode, Value: fmt.Sprint(stat.Mode())},
 					{Key: constants.FieldUid, Value: uid},

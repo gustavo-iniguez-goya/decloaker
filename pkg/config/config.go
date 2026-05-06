@@ -414,6 +414,10 @@ func compilePatterns(ptList *[]patterns.Pattern) ([]patterns.Pattern, error) {
 	return out, nil
 }
 
+func (cfg *PatternsConfig) Dump() {
+	fmt.Printf("%s\n", string(defaultPatternsYAML))
+}
+
 func (cfg *PatternsConfig) IsAllowedExe(exe string) bool {
 	for _, re := range cfg.allowExeRe {
 		if re.MatchString(exe) {

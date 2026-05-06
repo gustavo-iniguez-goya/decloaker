@@ -211,6 +211,11 @@ func scanHiddenContent() int {
 func scanSuspiciousProcs() int {
 	dlog.Info("Looking for suspicious processes\n")
 	cliCfg := getCliConfig(CLI.Scan.SuspiciousProcs.Cfg)
+	if CLI.Scan.SuspiciousProcs.DumpPatterns {
+		cfg.Dump()
+		return constants.OK
+	}
+
 	suspicious := decloaker.CheckSuspiciousProcs(cliCfg)
 	if len(suspicious) == 0 {
 		dlog.Info("no suspicious processes found\n\n")

@@ -31,10 +31,10 @@ cat, list, move, delete or copy files without the libc.
   stat [<paths> ...] [flags]
 ```
 
-List, copy or get info of directories and files by accessing directly the disk device (only ext4 filesystems).
+List, copy or get info of directories and files by accessing directly the disk device ([see the supported filesystems](https://github.com/gustavo-iniguez-goya/go-diskfs/tree/decloaker/filesystem)).
 
    - These options help to manipulate files or directories hidden by some kernel rootkits (like Diamorphine).
-   - NOTE: only available for ext4 filesystems for now. Can be added other filesystems like SquashFS.
+   - NOTE: only available for [some filesystems](https://github.com/gustavo-iniguez-goya/go-diskfs/tree/decloaker/filesystem).
    - NOTE: this feature does not work on tmpfs, so if /tmp is mounted on tmpfs, it won't find hidden files/directories.
      it'll work for LD_PRELOAD rootkits, and some kernel rootkits.
 
@@ -65,6 +65,9 @@ Use `--with-builtin-paths` to scan only hidden files or content predefined paths
 
   scan hidden-lkms
     Look for hidden kernel modules.
+
+  scan suspicious-procs [flags]
+    Look for suspicious processes.
 
   scan hidden-procs
     Look for hidden processes.
@@ -125,7 +128,7 @@ Pid        PPid       Inode    UID    GID    Host         Comm             Exe
 ### TODO
 
 - [ ] Read options from a configuration file.
-- [ ] Dump logs in json and structured text.
+- [x] Dump logs in json and structured text.
 - [ ] Display the differences when scanning with `scan hidden-content`.
 - [x] Display what processes opened the existing sockets.
       - 1/2 done: does not work for connections opened in containers.
@@ -225,20 +228,6 @@ diamorphine.ko	diamorphine.mod.o  ***diamorphine_secret.txt***  modules.order
 root@localhost:~#
 ```
 
-It can also hide processes, by sending them the signal `-31`. We'll hide these processes later:
-
-```bash
-
-root@localhost:~# sleep 99999 &
-[1] 1203
-root@localhost:~# sleep 99999 &
-[1] 1204
-root@localhost:~# pgrep sleep
-1203
-1204
-root@localhost:~#
-```
-
 Load the rootkit, and verify that the files and directories with "diamorphine_secret" are gone:
 
 ```bash
@@ -265,9 +254,16 @@ HIDDEN dirs/files found:
 root@localhost:~#
 ```
 
-Now we'll hide the processes:
+This rootkit can also hide processes, by sending them the signal `-31`:
 
 ```bash
+root@localhost:~# sleep 99999 &
+[1] 1203
+root@localhost:~# sleep 99999 &
+[1] 1204
+root@localhost:~# pgrep sleep
+1203
+1204
 root@localhost:~# kill -31 1203
 root@localhost:~# kill -31 1204
 root@localhost:~# pgrep -a sleep
@@ -368,7 +364,37 @@ tainted: d diamorphine/, OE
 root@localhost:~# 
 ```
 
-You can also use `decloaker disk --dev=/dev/sda1 cp /path/to/hidden_file.txt hidden_file_backup.txt` (only for ext4 filesystems).
+You can also use `decloaker disk --dev=/dev/sda1 cp /path/to/hidden_file.txt hidden_file_backup.txt`.
+
+Note:
+
+Some rootkits have the ability to hide patterns to the standard output:
+ 
+```bash
+root@localhost:~# /home/ga/decloaker disk find -d /dev/sda1 / -c --log-level=detection
+HIDDEN: /           _blackhole/test.txt
+HIDDEN: /           _blackhole/aa
+HIDDEN: /mnt/      /
+HIDDEN: /mnt/      /
+HIDDEN: /mnt/      /
+HIDDEN: /mnt/      /
+```
+
+Regular tools like ls, mv or cp won't work on these files, but with decloaker even though you can't actuate individually on each file,
+you can copy the directory recursively to a network shared directory or an external storage, and inspect it from another computer:
+
+```bash
+root@localhost:~# ls /mnt
+root@localhost:~# /home/ga/decloaker disk cp -d /dev/sda1 -r /mnt /mnt/pc1/
+root@localhost:~#
+
+ga@pc1:~# ls /mnt/shared/
+secret
+ga@pc1:~# ls /mnt/shared/secret/
+secret.xt secret2.txt secret3.txt
+```
+
+--
 
 ### Resources
 

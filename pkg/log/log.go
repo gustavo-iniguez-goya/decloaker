@@ -108,27 +108,15 @@ func SetLogLevel(level string) {
 }
 
 func Log(msg string, args ...any) {
-	if LogLevel > INFO {
-		return
-	}
-
-	if LogFormat == PLAIN {
-		slogger.Log(context.Background(), slog.LevelInfo, fmt.Sprintf(msg, args...))
-	} else if LogFormat == TEXT {
-		if len(args) < 1 {
-			return
-		}
-		slogger.Log(context.Background(), slog.LevelInfo, "", args[1:]...)
-	} else if LogFormat == JSON {
-		if len(args) < 1 {
-			return
-		}
-		slogger.Log(context.Background(), slog.LevelInfo, "", args[1:]...)
+	if LogLevel <= INFO && LogFormat == PLAIN {
+		fmt.Printf(msg, args...)
 	}
 }
 
 func Separator() {
-	fmt.Fprintf(os.Stderr, "---------------------------------------8<---------------------------------------\n")
+	if LogLevel <= INFO && LogFormat == PLAIN {
+		fmt.Fprintf(os.Stderr, "---------------------------------------8<---------------------------------------\n")
+	}
 }
 
 func Trace(msg string, args ...any) {

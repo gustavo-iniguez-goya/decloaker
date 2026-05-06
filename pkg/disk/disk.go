@@ -314,20 +314,45 @@ func Cp(dev string, partition int, orig, dest string, recursive bool, openMode d
 		err = copyFile(fs, orig, dest)
 		return err
 	}
-	tempOrig := normalizePath(orig)
-	entries, err := fs.ReadDir(tempOrig)
-	for _, e := range entries {
-		fmt.Printf("-> %s/%s\n", tempOrig, utils.ToAscii(e.Name()))
-		er := copyFile(fs,
-			utils.ToAscii(tempOrig+"/"+e.Name()),
-			utils.ToAscii(dest+"/"+e.Name()),
-		)
-		if er != nil {
-			err = er
-			log.Error("copy error: %s\n", err)
-		}
-	}
 
+	tempOrig := normalizePath(orig)
+	tempDest := normalizePath(dest)
+	WalkPath(fs, tempOrig, "",
+		func(dir string, entries []iofs.DirEntry) {
+			newDest := strings.Replace(dir, tempOrig, tempDest, 1)
+			log.Trace("%s -> %s\n", dir, newDest)
+			for _, e := range entries {
+				if e.Name() == "." || e.Name() == ".." {
+					continue
+				}
+				dstCopy := utils.ToAscii("/" + newDest + "/" + e.Name())
+				origCopy := utils.ToAscii(dir + "/" + e.Name())
+				info, _ := e.Info()
+				if info == nil {
+					log.Error("unable to obtain stat information: %s\n", origCopy)
+					continue
+				}
+				if info.IsDir() {
+					log.Trace("mkdir %s -> %s\n", dstCopy, e.Name())
+					er := os.MkdirAll(dstCopy, 0750)
+					if er != nil {
+						log.Error("unable to create dirs %s\n", dstCopy)
+					} else {
+						log.Ok("%s\n", dstCopy)
+					}
+
+					continue
+				}
+
+				log.Trace("copy %s -> %s\n", origCopy, dstCopy)
+				if er := copyFile(fs, origCopy, dstCopy); er != nil {
+					log.Error("copy error: %s\n", er)
+					continue
+				}
+				log.Ok("%s\n", dstCopy)
+			}
+
+		})
 	return err
 }
 

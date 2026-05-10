@@ -72,7 +72,7 @@ patterns:
   - type: cmdline
     data_type: regex
     operand: equals
-    data: "^(\\[|)(kthread|kworker|ksoft|kcompact|kdev|ksoftirqd|kaudit|khung|kdev|kswap|oom_|irq|rcu_|psimon|migration|watchdog|idle)"
+    data: "^(\\[|)(kthread|kworker|ksoft|kcompact|kdev|ksoftirqd|kaudit|khung|khuge|kdev|kswap|oom_|cpu|irq|rcu_|psimon|migration|watchdog|idle|pool|scsi|ksmd|dmcrypt|nfs|jdb|kvm|btrfs)"
     severity: critical
     description: "Userspace process impersonating a kernel thread"
     patterns:

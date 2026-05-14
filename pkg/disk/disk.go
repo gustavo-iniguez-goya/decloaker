@@ -263,7 +263,7 @@ func ReadDir(
 			if e.Name() == "." || e.Name() == ".." {
 				continue
 			}
-			stat, err := fs.Stat(path)
+			stat, _ := e.Info()
 			if err != nil {
 				log.Warn("Unable to stat %s? review needed", path)
 			}

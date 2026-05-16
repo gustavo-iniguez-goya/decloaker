@@ -417,7 +417,7 @@ func Rm(dev string, partition int, paths []string, openMode diskfs.OpenModeOptio
 		}
 	}
 	if er != nil {
-		err = fmt.Errorf("unable to copy the following paths:\n%s\n", err_paths)
+		err = fmt.Errorf("unable to delete the following paths:\n%s\n", err_paths)
 	}
 
 	return err
@@ -443,7 +443,7 @@ func Stat(dev string, partition int, paths []string, openMode diskfs.OpenModeOpt
 	for _, p := range paths {
 		stat, err := fs.Stat(p)
 		if err != nil {
-			log.Error("ext4.Stat() %s\n", err)
+			log.Error("unable to stat: %s\n", err)
 			continue
 		}
 		list = append(list, stat)

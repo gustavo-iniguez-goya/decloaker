@@ -99,6 +99,11 @@ func parseEntries(path string, entries []iofs.DirEntry, inode uint64, search str
 			matchCb(utils.ToAscii(pth), e)
 			continue
 		}
+		if search == e.Name() {
+			log.Trace("filename matched %s: %s\n", search, tmpPath)
+			matchCb(utils.ToAscii(pth), e)
+			continue
+		}
 	}
 
 	tmpPath := strings.ReplaceAll(path, "/", "")

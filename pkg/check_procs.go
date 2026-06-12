@@ -38,6 +38,7 @@ const (
 	MethodStat       = "stat"
 	MethodChdir      = "chdir"
 	MethodBruteForce = "brute_force"
+	MethodPattern    = "pattern"
 	MethodEbpf       = "ebpf"
 	MethodTaskStats  = "taskstats"
 	MethodCgroup     = "cgroup"
@@ -256,11 +257,8 @@ func CheckSuspiciousProcs(cfg *config.PatternsConfig) map[string]ebpf.Task {
 		status, bin, _ := getPidInfo(fmt.Sprint(ProcPrefix, t.Pid))
 
 		msg := ""
-		exe := ""
-		if t.Exe != "" {
-			exe = t.Exe
-		} else {
-			exe = bin
+		if t.Exe == "" {
+			t.Exe = bin
 		}
 
 		cline, err := os.ReadFile(ProcPrefix + t.Pid + "/cmdline")
@@ -275,6 +273,7 @@ func CheckSuspiciousProcs(cfg *config.PatternsConfig) map[string]ebpf.Task {
 		// TODO:
 		// - Allow to parse process tree.
 		// - check for history=/dev/null in /proc/<pid>/environ
+		// - check for uid, euid, gid, etc.
 
 		if len(status) > 0 && strings.Compare(status[PidPPID][1], "2") == 0 {
 			msg = fmt.Sprintf("\t\nWARNING (%s): ppid == 2?\n", t.Pid)
@@ -284,14 +283,6 @@ func CheckSuspiciousProcs(cfg *config.PatternsConfig) map[string]ebpf.Task {
 		if match := cfg.MatchProcess(&t); match != nil {
 			msg += fmt.Sprintf("\t\nWARNING (%s): %s\n", t.Pid, match.Description)
 			ret = constants.SUSPICIOUS_PROC
-			log.Event(log.DETECTION, log.CatHiddenPid, "hidden process found via brute force",
-				[]log.Fields{
-					{Key: constants.FieldPid, Value: t.Pid},
-					{Key: constants.FieldExe, Value: exe},
-					{Key: constants.FieldComm, Value: strings.TrimRight(t.Comm, "\x00")},
-					{Key: constants.FieldCmdline, Value: strings.TrimRight(string(cmdline), "\x00")},
-					{Key: constants.FieldMethod, Value: MethodBruteForce},
-				})
 		}
 		if ret == constants.SUSPICIOUS_PROC {
 			suspicious[msg] = t

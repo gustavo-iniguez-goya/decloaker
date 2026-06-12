@@ -117,7 +117,7 @@ func main() {
 	case "scan hidden-lkms":
 		ret = decloaker.CheckHiddenLKM()
 	case "scan hidden-procs":
-		ret = decloaker.CheckHiddenProcs(CLI.Scan.HiddenProcs.BruteForce, CLI.Scan.HiddenProcs.MaxPid)
+		ret = scanHiddenProcs()
 	case "scan suspicious-procs":
 		ret = scanSuspiciousProcs()
 	case "scan hidden-sockets <protos>":
@@ -208,6 +208,21 @@ func scanHiddenContent() int {
 	return decloaker.CheckHiddenContent(CLI.Scan.HiddenContent.Paths)
 }
 
+func scanHiddenProcs() int {
+	ret := constants.OK
+	if CLI.Scan.HiddenProcs.BindMount {
+		ret = decloaker.CheckBindMounts()
+		return ret
+	}
+	/*if CLI.Scan.HiddenProcs.Cgroups {
+		ret = decloaker.CheckHiddenProcsCgroups(nil)
+		return ret
+	}*/
+	ret = decloaker.CheckHiddenProcs(CLI.Scan.HiddenProcs.BruteForce, CLI.Scan.HiddenProcs.MaxPid)
+
+	return ret
+}
+
 func scanSuspiciousProcs() int {
 	dlog.Info("Looking for suspicious processes\n")
 	cliCfg := getCliConfig(CLI.Scan.SuspiciousProcs.Cfg)
@@ -222,9 +237,19 @@ func scanSuspiciousProcs() int {
 		return constants.OK
 	}
 	for reason, t := range suspicious {
-		dlog.Detection("%s\n\texe: %s\n\tcomm: %s\n\tcmdline: %s\n\thostname: %s\n\tUID: %s\n\tGID: %s\n\tPID: %s\n\tPPID: %s\n",
-			reason,
-			t.Exe, t.Comm, t.Cmdline, t.Hostname, t.Uid, t.Gid, t.Pid, t.PPid)
+		dlog.Event(dlog.DETECTION, dlog.CatHiddenPid, "%s\n\tmethod: %s\n\texe: %s\n\tcomm: %s\n\tcmdline: %s\n\thostname: %s\n\tUID: %s\n\tGID: %s\n\tPID: %s\n\tPPID: %s\n",
+			[]dlog.Fields{
+				{Key: constants.FieldReason, Value: reason},
+				{Key: constants.FieldMethod, Value: decloaker.MethodPattern},
+				{Key: constants.FieldExe, Value: t.Exe},
+				{Key: constants.FieldComm, Value: strings.TrimRight(t.Comm, "\x00")},
+				{Key: constants.FieldCmdline, Value: strings.TrimRight(string(t.Cmdline), "\x00")},
+				{Key: constants.FieldHostname, Value: t.Hostname},
+				{Key: constants.FieldUid, Value: t.Uid},
+				{Key: constants.FieldGid, Value: t.Gid},
+				{Key: constants.FieldPid, Value: t.Pid},
+				{Key: constants.FieldPPid, Value: t.PPid},
+			})
 	}
 
 	return constants.SUSPICIOUS_PROC
@@ -315,7 +340,7 @@ func diskLs() int {
 		if ino != nil {
 			owner = fmt.Sprint(ino.Uid, " ", ino.Gid, " ", ino.Ino)
 		}
-		dlog.Log("%s\t%s\t%d\t%s\t%s\n",
+		dlog.Log("%s\t%-4s\t%-6d\t%s\t%s\n",
 			stat.Mode(),
 			owner,
 			stat.Size(),

@@ -22,8 +22,8 @@ func (v VersionFlag) BeforeApply(app *kong.Kong, vars kong.Vars) error {
 // CLI defines the full command structure.
 var CLI struct {
 	Version        VersionFlag `help:"Print version"`
-	Format         string      `short:"f" help:"" global:""`
-	LogLevel       string      `help:"log level (debug,info,warn,error,detection). Use detection to display only detections" default:"info" enum:"debug,info,warning,error,detection"`
+	Format         string      `short:"f" help:"Output format: plain (default), json, text." default:"plain" enum:"plain,json,text" global:""`
+	LogLevel       string      `help:"Log level: trace, debug, info, warning, error, detection." default:"info" enum:"trace,debug,info,warning,error,detection"`
 	PinKernelLists bool        `help:"Make kernel lists permanent (kmods, pids, ...). They'll be available in /sys/fs/bpf/decloaker/tasks and /sys/fs/bpf/decloaker/kmods."`
 	ConfigFile     string      `help:"configuration file" type:"path"`
 	//Output  string `short:"o" help:"" global:""`
@@ -111,7 +111,7 @@ var CLI struct {
 			Recursive bool     `short:"r" default:"true" help:"Enable deep scanning."`
 			Compare   bool     `short:"c" help:"Compare files found against system's ls output to detect hidden files."`
 		} `cmd:"" help:"Find files in a disk device."`
-	} `cmd:"" help:"Read files directly from the disk device."`
+	} `cmd:"" help:"Read files directly from a disk device, partition or image file. Note: the path is always relative to the disk, partition or image being used. Examples:	"`
 
 	Scan struct {
 		WithBuiltinPaths bool `short:"w" optional:"" help:"Scan only important paths: /etc/ /usr/ /lib/ /tmp/, etc"`
@@ -132,6 +132,7 @@ var CLI struct {
 		} `cmd:"" help:"Look for suspicious processes."`
 		HiddenProcs struct {
 			BruteForce bool `short:"b" help:"Try to find processes via brute force."`
+			BindMount  bool `help:"Look for binding mounts"`
 			MaxPid     int  `short:"m" help:"Don't scan pass this pid."`
 		} `cmd:"" help:"Look for hidden processes."`
 		HiddenSockets struct {

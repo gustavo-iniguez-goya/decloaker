@@ -127,8 +127,7 @@ Pid        PPid       Inode    UID    GID    Host         Comm             Exe
 
 ### TODO
 
-- [ ] Read options from a configuration file.
-- [x] Dump logs in json and structured text.
+- [x] Read options from a configuration file.
 - [ ] Display the differences when scanning with `scan hidden-content`.
 - [x] Display what processes opened the existing sockets.
       - 1/2 done: does not work for connections opened in containers.
@@ -138,6 +137,9 @@ Pid        PPid       Inode    UID    GID    Host         Comm             Exe
 ### Malware analysis examples
 
 More analyses here: https://github.com/gustavo-iniguez-goya/decloaker/discussions/categories/malware-analysis
+
+ - [Medusa rootkit](https://github.com/gustavo-iniguez-goya/decloaker/discussions/3)
+ - [AUR malware campaign (11/06/2026)](https://github.com/gustavo-iniguez-goya/decloaker/discussions/4)
 
 #### Father (LD_PRELOAD rootkit)
 
@@ -151,6 +153,8 @@ root@localhost:~# cat /etc/ld.so.preload
 cat: /etc/ld.so.preload: No such file or directory
 root@localhost:~#
 ```
+
+As you see, l.so.preload apparently doesn't exist. Let's see what decloaker tells us:
 
 ```bash
 root@localhost:~# /home/ga/decloaker scan hidden-content /etc/ld.so.preload

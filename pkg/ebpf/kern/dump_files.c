@@ -1,4 +1,4 @@
-#include "vmlinux.h"
+//#include "vmlinux.h"
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_core_read.h>
 #include <bpf/bpf_tracing.h>
@@ -33,10 +33,13 @@ void get_exe_info(struct mm_struct *mm){
 SEC("iter/task_file")
 int dump_files(struct bpf_iter__task_file *ctx)
 {
-	struct seq_file *seq = ctx->meta->seq;
-	struct task_struct *task = ctx->task;
-	struct file *file = ctx->file;
-	__u32 fd = ctx->fd;
+    struct seq_file *seq = ctx->meta->seq;
+    struct task_struct *task = ctx->task;
+    struct file *file = ctx->file;
+    __u32 fd = ctx->fd;
+
+    if (task == (void *)0 || file == (void *)0)
+        return 0;
 
     if (pid > 0 && task->pid != (pid_t)pid){
         return 0;
@@ -45,12 +48,10 @@ int dump_files(struct bpf_iter__task_file *ctx)
         return 0;
     }
 
-	if (task == (void *)0 || file == (void *)0)
-		return 0;
 
-	if (ctx->meta->seq_num == 0) {
-		BPF_SEQ_PRINTF(seq, "    pid      tgid       fd      inode      file      exe\n");
-	}
+    if (ctx->meta->seq_num == 0) {
+        BPF_SEQ_PRINTF(seq, "    pid      tgid       fd      inode      file      exe\n");
+    }
     const struct cred *creds = task->cred;
     if (creds){
         uid = creds->uid.val;
@@ -60,7 +61,9 @@ int dump_files(struct bpf_iter__task_file *ctx)
 
     char comm[TASK_COMM_LEN]={0};
     BPF_CORE_READ_STR_INTO(&comm, task, comm);
+#ifdef WITH_PATH
     bpf_d_path(&file->f_path, path, 1024);
+#endif
 
 #pragma unroll
     for (int i = 0; i < sizeof(comm); i++) {
@@ -75,11 +78,11 @@ int dump_files(struct bpf_iter__task_file *ctx)
         }
     }
 
-	BPF_SEQ_PRINTF(seq, "pid=%d ppid=%d fd=%d inode=%d uid=%d gid=%d host=%s file=%s comm=%s exe=%s\n",
+    BPF_SEQ_PRINTF(seq, "pid=%d ppid=%d fd=%d inode=%d uid=%d gid=%d host=%s file=%s comm=%s exe=%s\n",
             task->pid,
             task->tgid,
             fd,
-		    file->f_inode->i_ino,
+            file->f_inode->i_ino,
             uid,
             gid,
             task->nsproxy->uts_ns->name.nodename,
@@ -89,5 +92,5 @@ int dump_files(struct bpf_iter__task_file *ctx)
     __builtin_memset(&path, 0, sizeof(path));
     __builtin_memset(&exe_path, 0, sizeof(exe_path));
     inode=0;
-	return 0;
+    return 0;
 }

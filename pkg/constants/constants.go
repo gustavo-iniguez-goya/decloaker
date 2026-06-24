@@ -81,6 +81,11 @@ const (
 	FieldTime     = "time"
 	FieldDate     = "date"
 
+	FieldProto = "proto"
+	FieldGroup = "group"
+	FieldDrops = "drops"
+	FieldDump  = "dump"
+
 	FieldMountPath  = "mount_path"
 	FieldCgroupPath = "cgroup_path"
 

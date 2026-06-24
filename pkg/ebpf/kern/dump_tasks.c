@@ -4,6 +4,9 @@
 #include <bpf/bpf_helpers.h>
 #include "common.h"
 
+volatile __u32 pid = 0;
+volatile __u32 ppid = 0;
+
 char path[1024]={0};
 unsigned long inode=0;
 uid_t uid = 0;
@@ -38,6 +41,14 @@ int dump_tasks(struct bpf_iter__task *ctx)
     if (!task){
         return 0;
     }
+
+	if (pid > 0 && task->pid != (pid_t)pid) {
+		return 0;
+	}
+	if (ppid > 0 && task->tgid != (pid_t)ppid) {
+		return 0;
+	}
+
     const struct cred *creds = task->cred;
     if (creds){
         uid = creds->uid.val;

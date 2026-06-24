@@ -148,6 +148,8 @@ var CLI struct {
 
 	Dump struct {
 		Files struct {
+			PID  string `help:"Filter by PID" name:"pid"`
+			PPID string `help:"Filter by parent PID" name:"ppid"`
 			Host string `help:"Filter by hostname (container, pod, ...)" name:"host"`
 		} `cmd:"" help:"Dump opened files."`
 		Kmods struct {
@@ -157,6 +159,8 @@ var CLI struct {
 		} `cmd:"" help:"Dump netlink connections."`
 		Tasks struct {
 			Host string `help:"Filter by hostname (container, pod, ...)" name:"host"`
+			PID  string `help:"Filter by PID" name:"pid"`
+			PPID string `help:"Filter by parent PID" name:"ppid"`
 		} `cmd:"" help:"Dump running tasks (processes)."`
 	} `cmd:"" help:"Commands to dump data from the kernel."`
 

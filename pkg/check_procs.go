@@ -246,7 +246,7 @@ func CheckSuspiciousProcs(cfg *config.PatternsConfig) map[string]ebpf.Task {
 	ret := constants.OK
 	suspicious := make(map[string]ebpf.Task)
 
-	liveTasks := ebpf.GetPidList("")
+	liveTasks := ebpf.GetPidList("", "", "")
 	if len(liveTasks) == 0 {
 		log.Info("0 processes returned from kernel (is eBPF working? REVIEW)\n")
 		return suspicious
@@ -432,7 +432,7 @@ func CheckHiddenProcs(doBruteForce bool, maxPid int) int {
 	orig, expected := ListFiles("/proc", sys.CmdLs, false)
 	ret = CompareFiles(true, orig, expected)
 
-	liveTasks := ebpf.GetPidList("")
+	liveTasks := ebpf.GetPidList("", "", "")
 	for _, t := range liveTasks {
 		procPath := ProcPrefix + t.Pid
 		if procPath == ourProcPath {

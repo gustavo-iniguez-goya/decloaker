@@ -5,6 +5,9 @@
 
 char _license[] SEC("license") = "GPL";
 
+volatile __u32 pid = 0;
+volatile __u32 ppid = 0;
+
 char path[1024]={0};
 char exe_path[1024]={0};
 unsigned long inode=0;
@@ -34,6 +37,13 @@ int dump_files(struct bpf_iter__task_file *ctx)
 	struct task_struct *task = ctx->task;
 	struct file *file = ctx->file;
 	__u32 fd = ctx->fd;
+
+    if (pid > 0 && task->pid != (pid_t)pid){
+        return 0;
+    }
+    if (ppid > 0 && task->tgid != (pid_t)ppid){
+        return 0;
+    }
 
 	if (task == (void *)0 || file == (void *)0)
 		return 0;

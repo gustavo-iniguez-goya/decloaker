@@ -3,10 +3,12 @@ package ebpf
 import (
 	"bytes"
 	_ "embed"
+	"fmt"
 	"golang.org/x/sys/unix"
 	"io"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/cilium/ebpf"
@@ -165,6 +167,52 @@ type Kmod struct {
 	Type  string
 }
 
+type Filters struct {
+	pid      string
+	ppid     string
+	exe      string
+	hostname string
+}
+
+func loadIter(progName string, code []byte, filters *Filters) (*link.Iter, error) {
+	collOpts := ebpf.CollectionOptions{}
+	specs, err := ebpf.LoadCollectionSpecFromReader(bytes.NewReader(code[:]))
+	if err != nil {
+		return nil, fmt.Errorf("module specs error %s: %s", progName, err)
+	}
+	log.Trace("[eBPF] %s global vars: %+v\n", progName, specs.Variables)
+
+	if filters != nil {
+		log.Debug("[eBPF] applying filters %+v\n", filters)
+		iPid, _ := strconv.Atoi(filters.pid)
+		if iPid > 0 {
+			specs.Variables["pid"].Set(uint32(iPid))
+		}
+		iPPid, _ := strconv.Atoi(filters.ppid)
+		if iPPid > 0 {
+			specs.Variables["ppid"].Set(uint32(iPPid))
+		}
+	}
+
+	iterTask, err := ebpf.NewCollectionWithOptions(specs, collOpts)
+	if iterTask == nil {
+		return nil, fmt.Errorf("iter task %s: %s", progName, err)
+	}
+	prog := iterTask.Programs[progName]
+	if prog == nil {
+		return nil, fmt.Errorf("iter task nil %s: %s", progName, err)
+	}
+
+	iter, err := link.AttachIter(link.IterOptions{
+		Program: prog,
+	})
+	if err != nil {
+		log.Error("[eBPF] iter link attach error %s: %s\n", progName, err)
+	}
+
+	return iter, err
+}
+
 func ConfigureIters(pinIters bool) {
 	if os.Getuid() != 0 {
 		log.Warn("[eBPF] execute decloaker as root to use eBPF functionality.\n")
@@ -184,28 +232,10 @@ func ConfigureIters(pinIters bool) {
 	for progName, code := range progList {
 		log.Debug("Loading ebpf module %s\n", progName)
 
-		collOpts := ebpf.CollectionOptions{}
-		specs, err := ebpf.LoadCollectionSpecFromReader(bytes.NewReader(code[:]))
-		if err != nil {
-			log.Error("[eBPF] module specs error %s: %s\n", progName, err)
-			continue
-		}
-		iterTask, err := ebpf.NewCollectionWithOptions(specs, collOpts)
-		if iterTask == nil {
-			log.Debug("[eBPF] iter task: %s\n", err)
-			continue
-		}
-		prog := iterTask.Programs[progName]
-		if prog == nil {
-			log.Error("[eBPF] iter task nil %s: %s\n", progName, err)
-			continue
-		}
+		iter, err := loadIter(progName, code, nil)
 
-		iter, err := link.AttachIter(link.IterOptions{
-			Program: prog,
-		})
 		if err != nil {
-			log.Error("[eBPF] iter link attach error %s: %s\n", progName, err)
+			log.Error("%s\n", err)
 			continue
 		}
 
@@ -222,10 +252,22 @@ func ConfigureIters(pinIters bool) {
 	log.Debug("[eBPF] loaded\n")
 }
 
+func ReloadTasksIter(pid, ppid string) {
+	code := progList[ProgDumpTasks]
+	iter, _ := loadIter(ProgDumpTasks, code, &Filters{pid: pid, ppid: ppid})
+	progHooks[ProgDumpTasks] = iter
+}
+
+func ReloadFilesIter(pid, ppid string) {
+	code := progList[ProgDumpFiles]
+	iter, _ := loadIter(ProgDumpFiles, code, &Filters{pid: pid, ppid: ppid})
+	progHooks[ProgDumpFiles] = iter
+}
+
 // GetPidList dumps the tasks that are active in the kernel.
 // The list can be read in /sys/fs/bpf/decloaker/tasks
 // since kernel 5.9
-func GetPidList(filterHost string) (taskList []Task) {
+func GetPidList(filterHost, filterPID, filterPPID string) (taskList []Task) {
 	iter, found := progHooks[ProgDumpTasks]
 	if !found {
 		log.Debug("iter %s not configured?\n", ProgDumpTasks)
@@ -261,6 +303,12 @@ func GetPidList(filterHost string) (taskList []Task) {
 		}
 		host := parts[0][6]
 		if filterHost != "" && filterHost != host {
+			continue
+		}
+		if filterPID != "" && filterPID != pid {
+			continue
+		}
+		if filterPPID != "" && filterPPID != ppid {
 			continue
 		}
 
@@ -432,7 +480,7 @@ func GetNetlinkList(filterPid string) (nlkList []Netlink) {
 	}
 	lines := strings.Split(string(nlkLinks), "\n")
 
-	tasks := GetPidList(filterPid)
+	tasks := GetPidList(filterPid, "", "")
 
 	for _, line := range lines {
 		parts := reNetlink.FindAllStringSubmatch(line, 1)

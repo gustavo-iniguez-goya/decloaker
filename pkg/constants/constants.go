@@ -100,6 +100,12 @@ const (
 	FieldReason = "reason"
 	FieldFlags  = "flags"
 
+	FieldVmStart = "vmstart"
+	FieldVmEnd   = "vmend"
+	FieldOffset  = "offset"
+	FieldPerms   = "perms"
+	FieldDev     = "dev"
+
 	FieldMode            = "mode"
 	FieldSize            = "size"
 	FieldOriginalSize    = "original_size"

@@ -162,6 +162,11 @@ var CLI struct {
 			PID  string `help:"Filter by PID" name:"pid"`
 			PPID string `help:"Filter by parent PID" name:"ppid"`
 		} `cmd:"" help:"Dump running tasks (processes)."`
+		Maps struct {
+			Host string `help:"Filter by hostname (container, pod, ...)" name:"host"`
+			PID  string `help:"Filter by PID" name:"pid"`
+			PPID string `help:"Filter by parent PID" name:"ppid"`
+		} `cmd:"" help:"Dump mapped files by process."`
 	} `cmd:"" help:"Commands to dump data from the kernel."`
 
 	// TODO

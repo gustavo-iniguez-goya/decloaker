@@ -138,6 +138,8 @@ func main() {
 		dumpKmods()
 	case "dump tasks":
 		dumpTasks()
+	case "dump maps":
+		dumpMaps()
 	case "dump netlink":
 		dumpNetlink()
 
@@ -507,7 +509,9 @@ func diskStat() int {
 }
 
 func dumpFiles() {
-	ebpf.ReloadFilesIter(CLI.Dump.Files.PID, CLI.Dump.Files.PPID)
+	if CLI.Dump.Files.PID != "" || CLI.Dump.Files.PPID != "" {
+		ebpf.ReloadFilesIter(CLI.Dump.Files.PID, CLI.Dump.Files.PPID)
+	}
 
 	dlog.Log("%-10s %-10s %-6s %-10s %-6s %-6s %s %-16s %s\t%s\n",
 		"Pid", "PPid", "Fd", "Inode", "UID", "GID", "Hostname", "Comm", "File", "Exe")
@@ -547,7 +551,9 @@ func dumpKmods() {
 }
 
 func dumpTasks() {
-	ebpf.ReloadTasksIter(CLI.Dump.Tasks.PID, CLI.Dump.Tasks.PPID)
+	if CLI.Dump.Tasks.PID != "" || CLI.Dump.Tasks.PPID != "" {
+		ebpf.ReloadTasksIter(CLI.Dump.Tasks.PID, CLI.Dump.Tasks.PPID)
+	}
 
 	dlog.Log("%-10s %-10s %-10s %-8s %-8s %-16s %-16s %s\n",
 		"Pid", "PPid", "Inode", "UID", "GID", "Host", "Comm", "Exe")
@@ -569,6 +575,42 @@ func dumpTasks() {
 				{Key: constants.FieldHostname, Value: t.Hostname},
 				{Key: constants.FieldComm, Value: t.Comm},
 				{Key: constants.FieldExe, Value: t.Exe},
+			})
+	}
+}
+
+func dumpMaps() {
+	if CLI.Dump.Maps.PID != "" || CLI.Dump.Maps.PPID != "" {
+		ebpf.ReloadMapsIter(CLI.Dump.Maps.PID, CLI.Dump.Maps.PPID)
+	}
+
+	dlog.Log("%-14s %-14s %-6s %-8s %-8s %-12s %s %s %s %s %s\n",
+		"VmStart", "VmEnd", "Perms", "Offset", "Dev", "Inode", "File", "PID", "PPID", "Comm", "Exe")
+	maps := ebpf.GetMapsList(
+		CLI.Dump.Maps.Host,
+		CLI.Dump.Maps.PID,
+		CLI.Dump.Maps.PPID,
+	)
+	for _, m := range maps {
+		dlog.Event(
+			dlog.DETECTION,
+			dlog.CatDumpMaps,
+			"%-14s %-14s %-6s %-8s %-8s %-12s %s %s %s %s %s\n",
+			[]dlog.Fields{
+				{Key: constants.FieldVmStart, Value: m.VmStart},
+				{Key: constants.FieldVmEnd, Value: m.VmEnd},
+				{Key: constants.FieldPerms, Value: m.Perms},
+				{Key: constants.FieldOffset, Value: m.Offset},
+				{Key: constants.FieldDev, Value: m.Dev},
+				{Key: constants.FieldInode, Value: m.Inode},
+				{Key: constants.FieldFile, Value: m.File},
+				{Key: constants.FieldPid, Value: m.Pid},
+				{Key: constants.FieldPPid, Value: m.PPid},
+				//{Key: constants.FieldUid, Value: m.Uid},
+				//{Key: constants.FieldGid, Value: m.Gid},
+				//{Key: constants.FieldHostname, Value: m.Hostname},
+				{Key: constants.FieldComm, Value: m.Comm},
+				{Key: constants.FieldExe, Value: m.Exe},
 			})
 	}
 }

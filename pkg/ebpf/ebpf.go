@@ -36,35 +36,45 @@ var dumpKmod []byte
 //go:embed kern/dump_netlink.o
 var dumpNetlink []byte
 
+//go:embed kern/dump_maps.o
+var dumpMaps []byte
+
 var (
 	LiveDir     = "/sys/fs/bpf/decloaker"
 	TasksPath   = "/sys/fs/bpf/decloaker/tasks"
 	FilesPath   = "/sys/fs/bpf/decloaker/files"
 	KmodsPath   = "/sys/fs/bpf/decloaker/kmods"
 	NetlinkPath = "/sys/fs/bpf/decloaker/netlink"
+	MapsPath    = "/sys/fs/bpf/decloaker/maps"
 	reTasks     = regexp.MustCompile(`pid=([0-9]+)\sppid=([0-9]+)\sinode=([0-9]+)\suid=([0-9]+)\sgid=([0-9]+)\shost=([0-9A-Za-z_-]+)\scomm=(.{0,16})\sexe=(.*)$`)
 	reFiles     = regexp.MustCompile(`pid=([0-9]+)\sppid=([0-9]+)\sfd=([0-9]+)\sinode=([0-9]+)\suid=([0-9]+)\sgid=([0-9]+)\shost=([0-9A-Za-z_-]+)\sfile=(.*)\scomm=(.{0,16})\sexe=(.*)$`)
 	// addr=0xffffffffc4668010 atype=T func=hide_proc_modules_init name=lab_hide type=FTRACE_MOD 0x8000
 	reKmods = regexp.MustCompile(`addr=([a-zA-Z0-9]+)\satype=([a-zA-Z0-9])\sfunc=([a-zA-Z0-9\-_]+)\sname=([a-zA-Z0-9\-_]+)\stype=([a-zA-Z0-9\-_]+)`)
 	// pid=3753903271 proto=16  group=7864320  drops=0    dump=0    inode=9872
-	reNetlink       = regexp.MustCompile(`pid=([0-9]+)\sproto=([0-9])\sgroup=([0-9]+)\sdrops=([0-9]+)\sdump=([0-9]+)\sinode=([0-9]+)`)
+	reNetlink = regexp.MustCompile(`pid=([0-9]+)\sproto=([0-9])\sgroup=([0-9]+)\sdrops=([0-9]+)\sdump=([0-9]+)\sinode=([0-9]+)`)
+	// vm_start=7f3805b38000 vm_end=7f3805b3b000 perms=r--p offset=00025000 dev=fd:02 inode=1582836 pid=2558411 ppid=2558411 comm=Web Content path=
+	reMaps = regexp.MustCompile(`vm_start=([a-zA-Z0-9]+)\svm_end=([a-zA-Z0-9]+)\sperms=([-rwxp]+)\soffset=([a-z0-9]+)\sdev=([:a-z0-9]+)\sinode=([0-9]+)\sfile=(.*)\spid=([0-9]+)\sppid=([0-9]+)\scomm=(.{0,16})\spath=(.*)$`)
+
 	ProgDumpTasks   = "dump_tasks"
 	ProgDumpTasks5x = "dump_tasks"
 	ProgDumpFiles   = "dump_files"
 	ProgDumpKmods   = "dump_kmods"
 	ProgDumpNetlink = "dump_netlink"
+	ProgDumpMaps    = "dump_maps"
 
 	progList = map[string][]byte{
 		ProgDumpTasks:   dumpTask,
 		ProgDumpFiles:   dumpFiles,
 		ProgDumpKmods:   dumpKmod,
 		ProgDumpNetlink: dumpNetlink,
+		ProgDumpMaps:    dumpMaps,
 	}
 	progPaths = map[string]string{
 		ProgDumpTasks:   TasksPath,
 		ProgDumpFiles:   FilesPath,
 		ProgDumpKmods:   KmodsPath,
 		ProgDumpNetlink: NetlinkPath,
+		ProgDumpMaps:    MapsPath,
 	}
 	progHooks = map[string]*link.Iter{}
 )
@@ -144,6 +154,49 @@ func (f *File) Get(field string) (interface{}, bool) {
 		return f.Pid, true
 	case constants.FieldPPid:
 		return f.PPid, true
+	}
+
+	return nil, false
+}
+
+type Maps struct {
+	VmStart string
+	VmEnd   string
+	Perms   string
+	Offset  string
+	Dev     string
+	Inode   string
+	File    string
+	Pid     string
+	PPid    string
+	Comm    string
+	Exe     string
+}
+
+func (m *Maps) Get(field string) (interface{}, bool) {
+	switch field {
+	case constants.FieldVmStart:
+		return m.VmStart, true
+	case constants.FieldVmEnd:
+		return m.VmEnd, true
+	case constants.FieldPerms:
+		return m.Perms, true
+	case constants.FieldOffset:
+		return m.Offset, true
+	case constants.FieldDev:
+		return m.Dev, true
+	case constants.FieldInode:
+		return m.Inode, true
+	case constants.FieldFile:
+		return m.File, true
+	case constants.FieldPid:
+		return m.Pid, true
+	case constants.FieldPPid:
+		return m.PPid, true
+	case constants.FieldExe:
+		return m.Exe, true
+	case constants.FieldComm:
+		return m.Comm, true
 	}
 
 	return nil, false
@@ -262,6 +315,12 @@ func ReloadFilesIter(pid, ppid string) {
 	code := progList[ProgDumpFiles]
 	iter, _ := loadIter(ProgDumpFiles, code, &Filters{pid: pid, ppid: ppid})
 	progHooks[ProgDumpFiles] = iter
+}
+
+func ReloadMapsIter(pid, ppid string) {
+	code := progList[ProgDumpMaps]
+	iter, _ := loadIter(ProgDumpMaps, code, &Filters{pid: pid, ppid: ppid})
+	progHooks[ProgDumpMaps] = iter
 }
 
 // GetPidList dumps the tasks that are active in the kernel.
@@ -520,6 +579,76 @@ func GetNetlinkList(filterPid string) (nlkList []Netlink) {
 	}
 
 	return nlkList
+}
+
+func GetMapsList(filterHost, pid, ppid string) (mapsList []Maps) {
+	iter, found := progHooks[ProgDumpMaps]
+	if !found {
+		log.Debug("iter %s not configured?\n", ProgDumpMaps)
+		return mapsList
+	}
+	iterReader, err := iter.Open()
+	if err != nil {
+		log.Error("iter.Open: %v\n", err)
+		return mapsList
+	}
+	defer iterReader.Close()
+
+	maps, err := io.ReadAll(iterReader)
+	if err != nil {
+		log.Error("%s not available\n", MapsPath)
+		return mapsList
+	}
+	if len(maps) == 0 {
+		log.Warn("[eBPF] kernel tasks empty (check previous errors).\n")
+		return mapsList
+	}
+	lines := strings.Split(string(maps), "\n")
+	for _, line := range lines {
+		parts := reMaps.FindAllStringSubmatch(line, 1)
+		if len(parts) == 0 || len(parts[0]) < 7 {
+			continue
+		}
+		// index 0 is the string that matched
+		vmstart := parts[0][1]
+		vmend := parts[0][2]
+		perms := parts[0][3]
+		offset := parts[0][4]
+		dev := parts[0][5]
+		inode := parts[0][6]
+		file := parts[0][7]
+		pid := parts[0][8]
+		ppid := parts[0][9]
+		comm := utils.ToAscii(parts[0][10])
+		exe := utils.ToAscii(parts[0][11])
+
+		//host := parts[0][7]
+		//if filterHost != "" && filterHost != host {
+		//	continue
+		//}
+
+		mapsList = append(mapsList,
+			[]Maps{
+				Maps{
+					VmStart: vmstart,
+					VmEnd:   vmend,
+					Perms:   perms,
+					Offset:  offset,
+					Dev:     dev,
+					Inode:   inode,
+					File:    file,
+					Pid:     pid,
+					PPid:    ppid,
+					//Uid:      uid,
+					//Gid:      gid,
+					//Hostname: host,
+					Comm: comm,
+					Exe:  exe,
+				},
+			}...)
+	}
+
+	return mapsList
 }
 
 func CleanupIters() {

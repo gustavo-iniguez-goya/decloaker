@@ -31,29 +31,38 @@ var dumpFiles []byte
 //go:embed kern/dump_kmods.o
 var dumpKmod []byte
 
+//go:embed kern/dump_netlink.o
+var dumpNetlink []byte
+
 var (
-	LiveDir   = "/sys/fs/bpf/decloaker"
-	TasksPath = "/sys/fs/bpf/decloaker/tasks"
-	FilesPath = "/sys/fs/bpf/decloaker/files"
-	KmodsPath = "/sys/fs/bpf/decloaker/kmods"
-	reTasks   = regexp.MustCompile(`pid=([0-9]+)\sppid=([0-9]+)\sinode=([0-9]+)\suid=([0-9]+)\sgid=([0-9]+)\shost=([0-9A-Za-z_-]+)\scomm=(.{0,16})\sexe=(.*)$`)
-	reFiles   = regexp.MustCompile(`pid=([0-9]+)\sppid=([0-9]+)\sfd=([0-9]+)\sinode=([0-9]+)\suid=([0-9]+)\sgid=([0-9]+)\shost=([0-9A-Za-z_-]+)\sfile=(.*)\scomm=(.{0,16})\sexe=(.*)$`)
+	LiveDir     = "/sys/fs/bpf/decloaker"
+	TasksPath   = "/sys/fs/bpf/decloaker/tasks"
+	FilesPath   = "/sys/fs/bpf/decloaker/files"
+	KmodsPath   = "/sys/fs/bpf/decloaker/kmods"
+	NetlinkPath = "/sys/fs/bpf/decloaker/netlink"
+	reTasks     = regexp.MustCompile(`pid=([0-9]+)\sppid=([0-9]+)\sinode=([0-9]+)\suid=([0-9]+)\sgid=([0-9]+)\shost=([0-9A-Za-z_-]+)\scomm=(.{0,16})\sexe=(.*)$`)
+	reFiles     = regexp.MustCompile(`pid=([0-9]+)\sppid=([0-9]+)\sfd=([0-9]+)\sinode=([0-9]+)\suid=([0-9]+)\sgid=([0-9]+)\shost=([0-9A-Za-z_-]+)\sfile=(.*)\scomm=(.{0,16})\sexe=(.*)$`)
 	// addr=0xffffffffc4668010 atype=T func=hide_proc_modules_init name=lab_hide type=FTRACE_MOD 0x8000
-	reKmods         = regexp.MustCompile(`addr=([a-zA-Z0-9]+)\satype=([a-zA-Z0-9])\sfunc=([a-zA-Z0-9\-_]+)\sname=([a-zA-Z0-9\-_]+)\stype=([a-zA-Z0-9\-_]+)`)
+	reKmods = regexp.MustCompile(`addr=([a-zA-Z0-9]+)\satype=([a-zA-Z0-9])\sfunc=([a-zA-Z0-9\-_]+)\sname=([a-zA-Z0-9\-_]+)\stype=([a-zA-Z0-9\-_]+)`)
+	// pid=3753903271 proto=16  group=7864320  drops=0    dump=0    inode=9872
+	reNetlink       = regexp.MustCompile(`pid=([0-9]+)\sproto=([0-9])\sgroup=([0-9]+)\sdrops=([0-9]+)\sdump=([0-9]+)\sinode=([0-9]+)`)
 	ProgDumpTasks   = "dump_tasks"
 	ProgDumpTasks5x = "dump_tasks"
 	ProgDumpFiles   = "dump_files"
 	ProgDumpKmods   = "dump_kmods"
+	ProgDumpNetlink = "dump_netlink"
 
 	progList = map[string][]byte{
-		ProgDumpTasks: dumpTask,
-		ProgDumpFiles: dumpFiles,
-		ProgDumpKmods: dumpKmod,
+		ProgDumpTasks:   dumpTask,
+		ProgDumpFiles:   dumpFiles,
+		ProgDumpKmods:   dumpKmod,
+		ProgDumpNetlink: dumpNetlink,
 	}
 	progPaths = map[string]string{
-		ProgDumpTasks: TasksPath,
-		ProgDumpFiles: FilesPath,
-		ProgDumpKmods: KmodsPath,
+		ProgDumpTasks:   TasksPath,
+		ProgDumpFiles:   FilesPath,
+		ProgDumpKmods:   KmodsPath,
+		ProgDumpNetlink: NetlinkPath,
 	}
 	progHooks = map[string]*link.Iter{}
 )
@@ -136,6 +145,16 @@ func (f *File) Get(field string) (interface{}, bool) {
 	}
 
 	return nil, false
+}
+
+type Netlink struct {
+	Pid   string
+	Proto string
+	Group string
+	Drops string
+	Dump  string
+	Inode string
+	Exe   string
 }
 
 type Kmod struct {
@@ -387,6 +406,72 @@ func GetKmodList() map[string]Kmod {
 	}
 
 	return kmodList
+}
+
+func GetNetlinkList(filterPid string) (nlkList []Netlink) {
+	iter, found := progHooks[ProgDumpNetlink]
+	if !found {
+		log.Debug("iter %s not configured?\n", ProgDumpNetlink)
+		return nlkList
+	}
+	iterReader, err := iter.Open()
+	if err != nil {
+		log.Error("iter.Open: %v\n", err)
+		return nlkList
+	}
+	defer iterReader.Close()
+
+	nlkLinks, err := io.ReadAll(iterReader)
+	if err != nil {
+		log.Error("%s not available\n", NetlinkPath)
+		return nlkList
+	}
+	if len(nlkLinks) == 0 {
+		log.Warn("[eBPF] netlink empty (check previous errors).\n")
+		return nlkList
+	}
+	lines := strings.Split(string(nlkLinks), "\n")
+
+	tasks := GetPidList(filterPid)
+
+	for _, line := range lines {
+		parts := reNetlink.FindAllStringSubmatch(line, 1)
+		if len(parts) == 0 || len(parts[0]) < 5 {
+			continue
+		}
+		// index 0 is the string that matched
+		pid := parts[0][1]
+		proto := parts[0][2]
+		group := parts[0][3]
+		if filterPid != "" && filterPid != pid {
+			continue
+		}
+
+		exe := ""
+		for _, t := range tasks {
+			if t.Pid == pid {
+				exe = t.Exe
+			}
+		}
+
+		drops := parts[0][4]
+		dump := parts[0][5]
+		inode := parts[0][6]
+		nlkList = append(nlkList,
+			[]Netlink{
+				Netlink{
+					Pid:   pid,
+					Proto: proto,
+					Group: group,
+					Drops: drops,
+					Dump:  dump,
+					Inode: inode,
+					Exe:   exe,
+				},
+			}...)
+	}
+
+	return nlkList
 }
 
 func CleanupIters() {

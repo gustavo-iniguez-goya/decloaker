@@ -138,6 +138,8 @@ func main() {
 		dumpKmods()
 	case "dump tasks":
 		dumpTasks()
+	case "dump netlink":
+		dumpNetlink()
 
 	/* TODO
 	case "config set":
@@ -559,6 +561,27 @@ func dumpTasks() {
 				{Key: constants.FieldGid, Value: t.Gid},
 				{Key: constants.FieldHostname, Value: t.Hostname},
 				{Key: constants.FieldComm, Value: t.Comm},
+				{Key: constants.FieldExe, Value: t.Exe},
+			})
+	}
+}
+
+func dumpNetlink() {
+	dlog.Log("%-14s %-8s %-10s %-8s %-8s %-10s %s\n",
+		"Pid", "Proto", "Group", "Drops", "Dump", "Inode", "Exe")
+	tasks := ebpf.GetNetlinkList(CLI.Dump.Netlink.PID)
+	for _, t := range tasks {
+		dlog.Event(
+			dlog.DETECTION,
+			dlog.CatDumpNetlink,
+			"%-14s %-8s %-10s %-8s %-8s %-10s %s\n",
+			[]dlog.Fields{
+				{Key: constants.FieldPid, Value: t.Pid},
+				{Key: constants.FieldProto, Value: t.Proto},
+				{Key: constants.FieldGroup, Value: t.Group},
+				{Key: constants.FieldDrops, Value: t.Drops},
+				{Key: constants.FieldDump, Value: t.Dump},
+				{Key: constants.FieldInode, Value: t.Inode},
 				{Key: constants.FieldExe, Value: t.Exe},
 			})
 	}

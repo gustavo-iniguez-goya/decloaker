@@ -152,6 +152,9 @@ var CLI struct {
 		} `cmd:"" help:"Dump opened files."`
 		Kmods struct {
 		} `cmd:"" help:"Dump loaded kernel modules."`
+		Netlink struct {
+			PID string `help:"Filter by PID" name:"pid"`
+		} `cmd:"" help:"Dump netlink connections."`
 		Tasks struct {
 			Host string `help:"Filter by hostname (container, pod, ...)" name:"host"`
 		} `cmd:"" help:"Dump running tasks (processes)."`

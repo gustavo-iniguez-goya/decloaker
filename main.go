@@ -1,4 +1,4 @@
-/*   Copyright (C) 2025 Gustavo Iñiguez Goya
+/*   Copyright (C) 2026 Gustavo Iñiguez Goya
 //
 //   This file is part of decloaker.
 //
@@ -507,6 +507,8 @@ func diskStat() int {
 }
 
 func dumpFiles() {
+	ebpf.ReloadFilesIter(CLI.Dump.Files.PID, CLI.Dump.Files.PPID)
+
 	dlog.Log("%-10s %-10s %-6s %-10s %-6s %-6s %s %-16s %s\t%s\n",
 		"Pid", "PPid", "Fd", "Inode", "UID", "GID", "Hostname", "Comm", "File", "Exe")
 	files := ebpf.GetFileList(CLI.Dump.Files.Host)
@@ -545,9 +547,14 @@ func dumpKmods() {
 }
 
 func dumpTasks() {
+	ebpf.ReloadTasksIter(CLI.Dump.Tasks.PID, CLI.Dump.Tasks.PPID)
+
 	dlog.Log("%-10s %-10s %-10s %-8s %-8s %-16s %-16s %s\n",
 		"Pid", "PPid", "Inode", "UID", "GID", "Host", "Comm", "Exe")
-	tasks := ebpf.GetPidList(CLI.Dump.Tasks.Host)
+	tasks := ebpf.GetPidList(
+		CLI.Dump.Tasks.Host,
+		CLI.Dump.Tasks.PID,
+		CLI.Dump.Tasks.PPID)
 	for _, t := range tasks {
 		dlog.Event(
 			dlog.DETECTION,

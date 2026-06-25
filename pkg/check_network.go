@@ -40,7 +40,7 @@ func CheckHiddenSockets(protos []string) int {
 			var err error
 			s.Exe, err = utils.ReadlinkEscaped("/proc/" + s.Pid + "/exe")
 			if err != nil {
-				s.Exe = "(unable to read process path, maybe a kernel thread)"
+				s.Exe = "(unable to read process path, maybe a kernel thread. Verify with 'scan hidden-procs')"
 			}
 		}
 

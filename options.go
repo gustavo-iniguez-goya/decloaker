@@ -133,6 +133,7 @@ var CLI struct {
 		HiddenProcs struct {
 			BruteForce bool `short:"b" help:"Try to find processes via brute force."`
 			BindMount  bool `help:"Look for binding mounts"`
+			Cgroups    bool `help:"Look for hidden processes via cgroups."`
 			MaxPid     int  `short:"m" help:"Don't scan pass this pid."`
 		} `cmd:"" help:"Look for hidden processes."`
 		HiddenSockets struct {

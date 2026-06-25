@@ -61,9 +61,7 @@ int dump_files(struct bpf_iter__task_file *ctx)
 
     char comm[TASK_COMM_LEN]={0};
     BPF_CORE_READ_STR_INTO(&comm, task, comm);
-#ifdef WITH_PATH
     bpf_d_path(&file->f_path, path, 1024);
-#endif
 
 #pragma unroll
     for (int i = 0; i < sizeof(comm); i++) {

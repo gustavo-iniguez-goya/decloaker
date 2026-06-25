@@ -131,6 +131,7 @@ func main() {
 		scanHiddenContent()
 		ret = decloaker.CheckHiddenLKM()
 		ret = decloaker.CheckHiddenProcs(CLI.Scan.HiddenProcs.BruteForce, 0)
+		ret = scanSuspiciousProcs()
 
 	case "dump files":
 		dumpFiles()
@@ -221,10 +222,11 @@ func scanHiddenProcs() int {
 		ret = decloaker.CheckBindMounts()
 		return ret
 	}
-	/*if CLI.Scan.HiddenProcs.Cgroups {
-		ret = decloaker.CheckHiddenProcsCgroups(nil)
+	if CLI.Scan.HiddenProcs.Cgroups {
+		_, expected := decloaker.ListFiles("/proc", sys.CmdLs, false)
+		ret = decloaker.CheckHiddenProcsCgroups(nil, expected)
 		return ret
-	}*/
+	}
 	ret = decloaker.CheckHiddenProcs(CLI.Scan.HiddenProcs.BruteForce, CLI.Scan.HiddenProcs.MaxPid)
 
 	return ret

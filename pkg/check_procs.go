@@ -361,6 +361,9 @@ func CheckBindMounts() int {
 func CheckHiddenProcsCgroups(nlTasks *taskstats.Client, expected map[string]os.FileInfo) int {
 	log.Info("Checking hidden processes via cgroups:\n\n")
 	ret := constants.OK
+	if nlTasks == nil {
+		nlTasks, _ = taskstats.New()
+	}
 
 	cgroups := ReadDir("/sys/fs/cgroup/", true)
 	for path := range cgroups {
@@ -368,6 +371,10 @@ func CheckHiddenProcsCgroups(nlTasks *taskstats.Client, expected map[string]os.F
 		if len(base) > 6 && base[len(base)-6:] != ".procs" {
 			continue
 		}
+		if len(base) > 8 && base[len(base)-8:] != ".threads" {
+			continue
+		}
+		log.Trace("checking cgroup path %s", path)
 		cgs, err := os.ReadFile(path)
 		if err != nil {
 			continue

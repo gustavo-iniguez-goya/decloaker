@@ -162,6 +162,9 @@ func main() {
 // =========================================================================
 
 func getCliConfig(cliConfig string) *config.PatternsConfig {
+	if cfg == nil {
+		return nil
+	}
 	tmpCfg := *cfg
 	if cliConfig == "" {
 		return &tmpCfg
@@ -233,6 +236,10 @@ func scanSuspiciousProcs() int {
 	if CLI.Scan.SuspiciousProcs.DumpPatterns {
 		cfg.Dump()
 		return constants.OK
+	}
+	if cliCfg == nil {
+		dlog.Error("Global configuration is nil. Something went really wrong.\n")
+		return constants.ERROR
 	}
 
 	suspicious := decloaker.CheckSuspiciousProcs(cliCfg)

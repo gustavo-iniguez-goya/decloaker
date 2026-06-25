@@ -409,4 +409,5 @@ secret.xt secret2.txt secret3.txt
  - [In-Depth Study of Linux Rootkits: Evolution, Detection, and Defense](https://www.first.org/resources/papers/amsterdam25/FIRST_Amsterdam_2025_Linux_Rootkits.pdf)
  - [Sandfly Security's articles on Linux forensics and malware](https://sandflysecurity.com/blog/tag/linux-forensics)
  - [Hiding Linux Processes with Bind Mounts](https://righteousit.com/2024/07/24/hiding-linux-processes-with-bind-mounts/)
+ - [How to detect a LD_PRELOAD rootkit and hide from ldd & /proc](https://matheuzsecurity.github.io/hacking/ldpreload-rootkit/)
  - [How is /proc able to list process IDs](https://ops.tips/blog/how-is-proc-able-to-list-pids/)

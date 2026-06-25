@@ -67,9 +67,9 @@ SEC("iter/task_vma") int dump_maps(struct bpf_iter__task_vma *ctx)
 
 		BPF_SEQ_PRINTF(seq, "offset=%08llx ", vma->vm_pgoff << 12);
 		BPF_SEQ_PRINTF(seq, "dev=%02x:%02x inode=%u file=%s ", MAJOR(dev), MINOR(dev), file->f_inode->i_ino, d_path_buf);
-		BPF_SEQ_PRINTF(seq, "pid=%d ppid=%d comm=%s path=\n", _pid, _ppid, comm);
+		BPF_SEQ_PRINTF(seq, "pid=%d ppid=%d host=%s comm=%s path=\n", _pid, _ppid, task->nsproxy->uts_ns->name.nodename, comm);
 	} else {
-		BPF_SEQ_PRINTF(seq, "%08llx dev=00:00 inode=0 file= pid=%d ppid=%d comm=%s path=\n", 0ULL, _pid, _ppid, comm);
+		BPF_SEQ_PRINTF(seq, "%08llx dev=00:00 inode=0 file= pid=%d ppid=%d host= comm=%s path=\n", 0ULL, _pid, _ppid, comm);
 	}
 	return 0;
 }

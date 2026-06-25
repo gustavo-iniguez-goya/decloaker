@@ -524,7 +524,11 @@ func dumpFiles() {
 
 	dlog.Log("%-10s %-10s %-6s %-10s %-6s %-6s %s %-16s %s\t%s\n",
 		"Pid", "PPid", "Fd", "Inode", "UID", "GID", "Hostname", "Comm", "File", "Exe")
-	files := ebpf.GetFileList(CLI.Dump.Files.Host)
+	files := ebpf.GetFileList(
+		ebpf.Filters{
+			Hostname: CLI.Dump.Files.Host,
+			Inode:    CLI.Dump.Files.Inode,
+		})
 	for _, f := range files {
 		dlog.Event(dlog.DETECTION, dlog.CatDumpFiles,
 			"%-10s %-10s %-6s %-10s %-6s %-6s %s %-16s %s\t%s\n",
@@ -567,9 +571,10 @@ func dumpTasks() {
 	dlog.Log("%-10s %-10s %-10s %-8s %-8s %-16s %-16s %s\n",
 		"Pid", "PPid", "Inode", "UID", "GID", "Host", "Comm", "Exe")
 	tasks := ebpf.GetPidList(
-		CLI.Dump.Tasks.Host,
-		CLI.Dump.Tasks.PID,
-		CLI.Dump.Tasks.PPID)
+		ebpf.Filters{
+			Hostname: CLI.Dump.Tasks.Host,
+			Inode:    CLI.Dump.Tasks.Inode,
+		})
 	for _, t := range tasks {
 		dlog.Event(
 			dlog.DETECTION,
@@ -593,18 +598,19 @@ func dumpMaps() {
 		ebpf.ReloadMapsIter(CLI.Dump.Maps.PID, CLI.Dump.Maps.PPID)
 	}
 
-	dlog.Log("%-14s %-14s %-6s %-8s %-8s %-12s %s %s %s %s %s\n",
-		"VmStart", "VmEnd", "Perms", "Offset", "Dev", "Inode", "File", "PID", "PPID", "Comm", "Exe")
+	dlog.Log("%-14s %-14s %-6s %-8s %-8s %-12s %s %s %s %s %s %s\n",
+		"VmStart", "VmEnd", "Perms", "Offset", "Dev", "Inode", "File", "PID", "PPID", "Host", "Comm", "Exe")
 	maps := ebpf.GetMapsList(
-		CLI.Dump.Maps.Host,
-		CLI.Dump.Maps.PID,
-		CLI.Dump.Maps.PPID,
+		ebpf.Filters{
+			Inode:    CLI.Dump.Maps.Inode,
+			Hostname: CLI.Dump.Maps.Host,
+		},
 	)
 	for _, m := range maps {
 		dlog.Event(
 			dlog.DETECTION,
 			dlog.CatDumpMaps,
-			"%-14s %-14s %-6s %-8s %-8s %-12s %s %s %s %s %s\n",
+			"%-14s %-14s %-6s %-8s %-8s %-12s %s %s %s %s %s %s\n",
 			[]dlog.Fields{
 				{Key: constants.FieldVmStart, Value: m.VmStart},
 				{Key: constants.FieldVmEnd, Value: m.VmEnd},
@@ -617,7 +623,7 @@ func dumpMaps() {
 				{Key: constants.FieldPPid, Value: m.PPid},
 				//{Key: constants.FieldUid, Value: m.Uid},
 				//{Key: constants.FieldGid, Value: m.Gid},
-				//{Key: constants.FieldHostname, Value: m.Hostname},
+				{Key: constants.FieldHostname, Value: m.Hostname},
 				{Key: constants.FieldComm, Value: m.Comm},
 				{Key: constants.FieldExe, Value: m.Exe},
 			})
@@ -627,7 +633,11 @@ func dumpMaps() {
 func dumpNetlink() {
 	dlog.Log("%-14s %-8s %-10s %-8s %-8s %-10s %s\n",
 		"Pid", "Proto", "Group", "Drops", "Dump", "Inode", "Exe")
-	tasks := ebpf.GetNetlinkList(CLI.Dump.Netlink.PID)
+	tasks := ebpf.GetNetlinkList(
+		ebpf.Filters{
+			Pid:   CLI.Dump.Netlink.PID,
+			Inode: CLI.Dump.Netlink.Inode,
+		})
 	for _, t := range tasks {
 		dlog.Event(
 			dlog.DETECTION,

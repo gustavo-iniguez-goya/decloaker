@@ -53,7 +53,7 @@ var (
 	// pid=3753903271 proto=16  group=7864320  drops=0    dump=0    inode=9872
 	reNetlink = regexp.MustCompile(`pid=([0-9]+)\sproto=([0-9])\sgroup=([0-9]+)\sdrops=([0-9]+)\sdump=([0-9]+)\sinode=([0-9]+)`)
 	// vm_start=7f3805b38000 vm_end=7f3805b3b000 perms=r--p offset=00025000 dev=fd:02 inode=1582836 pid=2558411 ppid=2558411 comm=Web Content path=
-	reMaps = regexp.MustCompile(`vm_start=([a-zA-Z0-9]+)\svm_end=([a-zA-Z0-9]+)\sperms=([-rwxp]+)\soffset=([a-z0-9]+)\sdev=([:a-z0-9]+)\sinode=([0-9]+)\sfile=(.*)\spid=([0-9]+)\sppid=([0-9]+)\scomm=(.{0,16})\spath=(.*)$`)
+	reMaps = regexp.MustCompile(`vm_start=([a-zA-Z0-9]+)\svm_end=([a-zA-Z0-9]+)\sperms=([-rwxp]+)\soffset=([a-z0-9]+)\sdev=([:a-z0-9]+)\sinode=([0-9]+)\sfile=(.*)\spid=([0-9]+)\sppid=([0-9]+)\shost=(.*)\scomm=(.{0,16})\spath=(.*)$`)
 
 	ProgDumpTasks   = "dump_tasks"
 	ProgDumpTasks5x = "dump_tasks"
@@ -160,17 +160,18 @@ func (f *File) Get(field string) (interface{}, bool) {
 }
 
 type Maps struct {
-	VmStart string
-	VmEnd   string
-	Perms   string
-	Offset  string
-	Dev     string
-	Inode   string
-	File    string
-	Pid     string
-	PPid    string
-	Comm    string
-	Exe     string
+	VmStart  string
+	VmEnd    string
+	Perms    string
+	Offset   string
+	Dev      string
+	Inode    string
+	File     string
+	Pid      string
+	PPid     string
+	Hostname string
+	Comm     string
+	Exe      string
 }
 
 func (m *Maps) Get(field string) (interface{}, bool) {
@@ -189,6 +190,8 @@ func (m *Maps) Get(field string) (interface{}, bool) {
 		return m.Inode, true
 	case constants.FieldFile:
 		return m.File, true
+	case constants.FieldHostname:
+		return m.Hostname, true
 	case constants.FieldPid:
 		return m.Pid, true
 	case constants.FieldPPid:
@@ -221,10 +224,11 @@ type Kmod struct {
 }
 
 type Filters struct {
-	pid      string
-	ppid     string
-	exe      string
-	hostname string
+	Pid      string
+	PPid     string
+	Inode    string
+	Exe      string
+	Hostname string
 }
 
 func loadIter(progName string, code []byte, filters *Filters) (*link.Iter, error) {
@@ -237,11 +241,11 @@ func loadIter(progName string, code []byte, filters *Filters) (*link.Iter, error
 
 	if filters != nil {
 		log.Debug("[eBPF] applying filters %+v\n", filters)
-		iPid, _ := strconv.Atoi(filters.pid)
+		iPid, _ := strconv.Atoi(filters.Pid)
 		if iPid > 0 {
 			specs.Variables["pid"].Set(uint32(iPid))
 		}
-		iPPid, _ := strconv.Atoi(filters.ppid)
+		iPPid, _ := strconv.Atoi(filters.PPid)
 		if iPPid > 0 {
 			specs.Variables["ppid"].Set(uint32(iPPid))
 		}
@@ -307,26 +311,26 @@ func ConfigureIters(pinIters bool) {
 
 func ReloadTasksIter(pid, ppid string) {
 	code := progList[ProgDumpTasks]
-	iter, _ := loadIter(ProgDumpTasks, code, &Filters{pid: pid, ppid: ppid})
+	iter, _ := loadIter(ProgDumpTasks, code, &Filters{Pid: pid, PPid: ppid})
 	progHooks[ProgDumpTasks] = iter
 }
 
 func ReloadFilesIter(pid, ppid string) {
 	code := progList[ProgDumpFiles]
-	iter, _ := loadIter(ProgDumpFiles, code, &Filters{pid: pid, ppid: ppid})
+	iter, _ := loadIter(ProgDumpFiles, code, &Filters{Pid: pid, PPid: ppid})
 	progHooks[ProgDumpFiles] = iter
 }
 
 func ReloadMapsIter(pid, ppid string) {
 	code := progList[ProgDumpMaps]
-	iter, _ := loadIter(ProgDumpMaps, code, &Filters{pid: pid, ppid: ppid})
+	iter, _ := loadIter(ProgDumpMaps, code, &Filters{Pid: pid, PPid: ppid})
 	progHooks[ProgDumpMaps] = iter
 }
 
 // GetPidList dumps the tasks that are active in the kernel.
 // The list can be read in /sys/fs/bpf/decloaker/tasks
 // since kernel 5.9
-func GetPidList(filterHost, filterPID, filterPPID string) (taskList []Task) {
+func GetPidList(filters Filters) (taskList []Task) {
 	iter, found := progHooks[ProgDumpTasks]
 	if !found {
 		log.Debug("iter %s not configured?\n", ProgDumpTasks)
@@ -356,22 +360,27 @@ func GetPidList(filterHost, filterPID, filterPPID string) (taskList []Task) {
 		}
 		pid := parts[0][1]
 		ppid := parts[0][2]
+		if filters.Pid != "" && filters.Pid != pid {
+			continue
+		}
+		if filters.PPid != "" && filters.PPid != ppid {
+			continue
+		}
 		// exclude threads
 		if pid != ppid {
 			continue
 		}
-		host := parts[0][6]
-		if filterHost != "" && filterHost != host {
-			continue
-		}
-		if filterPID != "" && filterPID != pid {
-			continue
-		}
-		if filterPPID != "" && filterPPID != ppid {
+
+		inode := parts[0][3]
+		if filters.Inode != "" && filters.Inode != inode {
 			continue
 		}
 
-		inode := parts[0][3]
+		host := parts[0][6]
+		if filters.Hostname != "" && filters.Hostname != host {
+			continue
+		}
+
 		uid := parts[0][4]
 		gid := parts[0][5]
 		comm := utils.ToAscii(parts[0][7])
@@ -395,7 +404,7 @@ func GetPidList(filterHost, filterPID, filterPPID string) (taskList []Task) {
 	return taskList
 }
 
-func GetFileList(filterHost string) (fileList []File) {
+func GetFileList(filters Filters) (fileList []File) {
 	iter, found := progHooks[ProgDumpFiles]
 	if !found {
 		log.Debug("iter %s not configured?\n", ProgDumpFiles)
@@ -425,17 +434,28 @@ func GetFileList(filterHost string) (fileList []File) {
 		}
 		pid := parts[0][1]
 		ppid := parts[0][2]
+		if filters.Pid != "" && filters.Pid != pid {
+			continue
+		}
+		if filters.PPid != "" && filters.PPid != ppid {
+			continue
+		}
 		// exclude threads
 		if pid != ppid {
 			continue
 		}
+
 		host := parts[0][7]
-		if filterHost != "" && filterHost != host {
+		if filters.Hostname != "" && filters.Hostname != host {
 			continue
 		}
 
 		fd := parts[0][3]
 		inode := parts[0][4]
+		if filters.Inode != "" && filters.Inode != inode {
+			continue
+		}
+
 		uid := parts[0][5]
 		gid := parts[0][6]
 		file := utils.ToAscii(parts[0][8])
@@ -515,7 +535,7 @@ func GetKmodList() map[string]Kmod {
 	return kmodList
 }
 
-func GetNetlinkList(filterPid string) (nlkList []Netlink) {
+func GetNetlinkList(filters Filters) (nlkList []Netlink) {
 	iter, found := progHooks[ProgDumpNetlink]
 	if !found {
 		log.Debug("iter %s not configured?\n", ProgDumpNetlink)
@@ -539,7 +559,7 @@ func GetNetlinkList(filterPid string) (nlkList []Netlink) {
 	}
 	lines := strings.Split(string(nlkLinks), "\n")
 
-	tasks := GetPidList(filterPid, "", "")
+	tasks := GetPidList(filters)
 
 	for _, line := range lines {
 		parts := reNetlink.FindAllStringSubmatch(line, 1)
@@ -550,7 +570,14 @@ func GetNetlinkList(filterPid string) (nlkList []Netlink) {
 		pid := parts[0][1]
 		proto := parts[0][2]
 		group := parts[0][3]
-		if filterPid != "" && filterPid != pid {
+		drops := parts[0][4]
+		dump := parts[0][5]
+		inode := parts[0][6]
+
+		if filters.Pid != "" && filters.Pid != pid {
+			continue
+		}
+		if filters.Inode != "" && filters.Inode != inode {
 			continue
 		}
 
@@ -561,9 +588,6 @@ func GetNetlinkList(filterPid string) (nlkList []Netlink) {
 			}
 		}
 
-		drops := parts[0][4]
-		dump := parts[0][5]
-		inode := parts[0][6]
 		nlkList = append(nlkList,
 			[]Netlink{
 				Netlink{
@@ -581,7 +605,7 @@ func GetNetlinkList(filterPid string) (nlkList []Netlink) {
 	return nlkList
 }
 
-func GetMapsList(filterHost, pid, ppid string) (mapsList []Maps) {
+func GetMapsList(filters Filters) (mapsList []Maps) {
 	iter, found := progHooks[ProgDumpMaps]
 	if !found {
 		log.Debug("iter %s not configured?\n", ProgDumpMaps)
@@ -619,13 +643,22 @@ func GetMapsList(filterHost, pid, ppid string) (mapsList []Maps) {
 		file := parts[0][7]
 		pid := parts[0][8]
 		ppid := parts[0][9]
-		comm := utils.ToAscii(parts[0][10])
-		exe := utils.ToAscii(parts[0][11])
+		host := parts[0][10]
+		comm := utils.ToAscii(parts[0][11])
+		exe := utils.ToAscii(parts[0][12])
 
-		//host := parts[0][7]
-		//if filterHost != "" && filterHost != host {
-		//	continue
-		//}
+		if filters.Pid != "" && filters.Pid != pid {
+			continue
+		}
+		if filters.PPid != "" && filters.PPid != ppid {
+			continue
+		}
+		if filters.Hostname != "" && filters.Hostname != host {
+			continue
+		}
+		if filters.Inode != "" && filters.Inode != inode {
+			continue
+		}
 
 		mapsList = append(mapsList,
 			[]Maps{
@@ -641,9 +674,9 @@ func GetMapsList(filterHost, pid, ppid string) (mapsList []Maps) {
 					PPid:    ppid,
 					//Uid:      uid,
 					//Gid:      gid,
-					//Hostname: host,
-					Comm: comm,
-					Exe:  exe,
+					Hostname: host,
+					Comm:     comm,
+					Exe:      exe,
 				},
 			}...)
 	}

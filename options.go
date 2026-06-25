@@ -149,24 +149,28 @@ var CLI struct {
 
 	Dump struct {
 		Files struct {
-			PID  string `help:"Filter by PID" name:"pid"`
-			PPID string `help:"Filter by parent PID" name:"ppid"`
-			Host string `help:"Filter by hostname (container, pod, ...)" name:"host"`
+			PID   string `help:"Filter by PID" name:"pid"`
+			PPID  string `help:"Filter by parent PID" name:"ppid"`
+			Host  string `help:"Filter by hostname (container, pod, ...)" name:"host"`
+			Inode string `help:"Filter by inode" name:"inode"`
 		} `cmd:"" help:"Dump opened files."`
 		Kmods struct {
 		} `cmd:"" help:"Dump loaded kernel modules."`
 		Netlink struct {
-			PID string `help:"Filter by PID" name:"pid"`
+			PID   string `help:"Filter by PID" name:"pid"`
+			Inode string `help:"Filter by inode" name:"inode"`
 		} `cmd:"" help:"Dump netlink connections."`
 		Tasks struct {
-			Host string `help:"Filter by hostname (container, pod, ...)" name:"host"`
-			PID  string `help:"Filter by PID" name:"pid"`
-			PPID string `help:"Filter by parent PID" name:"ppid"`
+			Host  string `help:"Filter by hostname (container, pod, ...)" name:"host"`
+			Inode string `help:"Filter by inode" name:"inode"`
+			PID   string `help:"Filter by PID" name:"pid"`
+			PPID  string `help:"Filter by parent PID" name:"ppid"`
 		} `cmd:"" help:"Dump running tasks (processes)."`
 		Maps struct {
-			Host string `help:"Filter by hostname (container, pod, ...)" name:"host"`
-			PID  string `help:"Filter by PID" name:"pid"`
-			PPID string `help:"Filter by parent PID" name:"ppid"`
+			Inode string `help:"Filter by inode" name:"inode"`
+			Host  string `help:"Filter by hostname (container, pod, ...)" name:"host"`
+			PID   string `help:"Filter by PID" name:"pid"`
+			PPID  string `help:"Filter by parent PID" name:"ppid"`
 		} `cmd:"" help:"Dump mapped files by process."`
 	} `cmd:"" help:"Commands to dump data from the kernel."`
 

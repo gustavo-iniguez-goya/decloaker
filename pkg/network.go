@@ -129,7 +129,7 @@ func Netstat(protos []string, states map[uint8]struct{}) []Socket {
 		}
 	}
 
-	files := ebpf.GetFileList("")
+	files := ebpf.GetFileList(ebpf.Filters{})
 	inodes := make(map[uint32]ebpf.File)
 	for _, f := range files {
 		inode, err := strconv.Atoi(f.Inode)

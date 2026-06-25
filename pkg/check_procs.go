@@ -289,7 +289,7 @@ func CheckSuspiciousProcs(cfg *config.PatternsConfig) map[string]ebpf.Task {
 		}
 	}
 
-	liveMaps := ebpf.GetMapsList("", "", "")
+	liveMaps := ebpf.GetMapsList(ebpf.Filters{})
 	for _, t := range liveMaps {
 		if match := cfg.MatchFile(&t); match != nil {
 			log.Info("\t\nWARNING (%s): %s\n", t.Pid, match.Description)
@@ -447,7 +447,7 @@ func CheckHiddenProcs(doBruteForce bool, maxPid int) int {
 	orig, expected := ListFiles("/proc", sys.CmdLs, false)
 	ret = CompareFiles(true, orig, expected)
 
-	liveTasks := ebpf.GetPidList("", "", "")
+	liveTasks := ebpf.GetPidList(ebpf.Filters{})
 	for _, t := range liveTasks {
 		procPath := ProcPrefix + t.Pid
 		if procPath == ourProcPath {

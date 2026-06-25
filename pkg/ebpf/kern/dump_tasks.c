@@ -56,8 +56,8 @@ int dump_tasks(struct bpf_iter__task *ctx)
     }
     get_exe_info(task->mm);
 
-    pid_t pid = task->pid;
-    pid_t ppid = task->tgid;
+    pid_t _pid = task->pid;
+    pid_t _ppid = task->tgid;
     char comm[TASK_COMM_LEN]={0};
     BPF_CORE_READ_STR_INTO(&comm, task, comm);
 
@@ -76,7 +76,7 @@ int dump_tasks(struct bpf_iter__task *ctx)
     }
 
     BPF_SEQ_PRINTF(seq, "pid=%d ppid=%d inode=%d uid=%d gid=%d host=%s comm=%s exe=%s\n",
-            pid, ppid,
+            _pid, _ppid,
             inode,
             uid,
             gid,

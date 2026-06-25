@@ -289,6 +289,14 @@ func CheckSuspiciousProcs(cfg *config.PatternsConfig) map[string]ebpf.Task {
 		}
 	}
 
+	liveMaps := ebpf.GetMapsList("", "", "")
+	for _, t := range liveMaps {
+		if match := cfg.MatchFile(&t); match != nil {
+			log.Info("\t\nWARNING (%s): %s\n", t.Pid, match.Description)
+			ret = constants.SUSPICIOUS_PROC
+		}
+	}
+
 	return suspicious
 }
 

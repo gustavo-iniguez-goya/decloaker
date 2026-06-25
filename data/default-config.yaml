@@ -68,6 +68,14 @@ detection:
 
 # --- Per-process attribute patterns (applied to every visible PID) ---
 patterns:
+  file:
+  - type: file
+    data_type: regex
+    operand: equals
+    data: "^(\\/var/tmp|\\/tmp|\\/dev)"
+    severity: critical
+    description: "Library mapped from temporary directory"
+
   process:
   - type: cmdline
     data_type: regex

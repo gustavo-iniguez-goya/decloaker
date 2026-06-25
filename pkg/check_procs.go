@@ -246,7 +246,7 @@ func CheckSuspiciousProcs(cfg *config.PatternsConfig) map[string]ebpf.Task {
 	ret := constants.OK
 	suspicious := make(map[string]ebpf.Task)
 
-	liveTasks := ebpf.GetPidList("", "", "")
+	liveTasks := ebpf.GetPidList(ebpf.Filters{})
 	if len(liveTasks) == 0 {
 		log.Info("0 processes returned from kernel (is eBPF working? REVIEW)\n")
 		return suspicious

@@ -44,7 +44,9 @@ int dump_files(struct bpf_iter__task_file *ctx)
     if (pid > 0 && task->pid != (pid_t)pid){
         return 0;
     }
-    if (ppid > 0 && task->tgid != (pid_t)ppid){
+    pid_t _ppid = 0;
+    bpf_probe_read_kernel(&_ppid, sizeof(_ppid), &task->real_parent->pid);
+    if (ppid > 0 && _ppid != (pid_t)ppid){
         return 0;
     }
 
@@ -78,7 +80,7 @@ int dump_files(struct bpf_iter__task_file *ctx)
 
     BPF_SEQ_PRINTF(seq, "pid=%d ppid=%d fd=%d inode=%d uid=%d gid=%d host=%s file=%s comm=%s exe=%s\n",
             task->pid,
-            task->tgid,
+            _ppid,
             fd,
             file->f_inode->i_ino,
             uid,

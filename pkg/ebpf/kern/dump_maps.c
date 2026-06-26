@@ -38,11 +38,12 @@ SEC("iter/task_vma") int dump_maps(struct bpf_iter__task_vma *ctx)
 	if (pid > 0 && task->pid != (pid_t)pid) {
 		return 0;
 	}
-	if (ppid > 0 && task->tgid != (pid_t)ppid) {
-		return 0;
-	}
+    pid_t _ppid = 0;
+    bpf_probe_read_kernel(&_ppid, sizeof(_ppid), &task->real_parent->pid);
+    if (ppid > 0 && _ppid != (pid_t)ppid) {
+        return 0;
+    }
     pid_t _pid = task->pid;
-    pid_t _ppid = task->tgid;
     char comm[TASK_COMM_LEN]={0};
     BPF_CORE_READ_STR_INTO(&comm, task, comm);
 
@@ -60,10 +61,7 @@ SEC("iter/task_vma") int dump_maps(struct bpf_iter__task_vma *ctx)
 
 	if (file) {
 		__u32 dev = file->f_inode->i_sb->s_dev;
-
-//#ifdef WITH_PATH
 		bpf_d_path(&file->f_path, d_path_buf, D_PATH_BUF_SIZE);
-//#endif
 
 		BPF_SEQ_PRINTF(seq, "offset=%08llx ", vma->vm_pgoff << 12);
 		BPF_SEQ_PRINTF(seq, "dev=%02x:%02x inode=%u file=%s ", MAJOR(dev), MINOR(dev), file->f_inode->i_ino, d_path_buf);

@@ -46,8 +46,9 @@ var (
 	KmodsPath   = "/sys/fs/bpf/decloaker/kmods"
 	NetlinkPath = "/sys/fs/bpf/decloaker/netlink"
 	MapsPath    = "/sys/fs/bpf/decloaker/maps"
-	reTasks     = regexp.MustCompile(`pid=([0-9]+)\sppid=([0-9]+)\sinode=([0-9]+)\suid=([0-9]+)\sgid=([0-9]+)\shost=([0-9A-Za-z_-]+)\scomm=(.{0,16})\sexe=(.*)$`)
-	reFiles     = regexp.MustCompile(`pid=([0-9]+)\sppid=([0-9]+)\sfd=([0-9]+)\sinode=([0-9]+)\suid=([0-9]+)\sgid=([0-9]+)\shost=([0-9A-Za-z_-]+)\sfile=(.*)\scomm=(.{0,16})\sexe=(.*)$`)
+
+	reTasks = regexp.MustCompile(`pid=([0-9]+)\sppid=([0-9]+)\sinode=([0-9]+)\suid=([0-9]+)\sgid=([0-9]+)\shost=([0-9A-Za-z_-]+)\scomm=(.{0,16})\sexe=(.*)$`)
+	reFiles = regexp.MustCompile(`pid=([0-9]+)\sppid=([0-9]+)\sfd=([0-9]+)\sinode=([0-9]+)\suid=([0-9]+)\sgid=([0-9]+)\shost=([0-9A-Za-z_-]+)\sfile=(.*)\scomm=(.{0,16})\sexe=(.*)$`)
 	// addr=0xffffffffc4668010 atype=T func=hide_proc_modules_init name=lab_hide type=FTRACE_MOD 0x8000
 	reKmods = regexp.MustCompile(`addr=([a-zA-Z0-9]+)\satype=([a-zA-Z0-9])\sfunc=([a-zA-Z0-9\-_]+)\sname=([a-zA-Z0-9\-_]+)\stype=([a-zA-Z0-9\-_]+)`)
 	// pid=3753903271 proto=16  group=7864320  drops=0    dump=0    inode=9872
@@ -358,16 +359,13 @@ func GetPidList(filters Filters) (taskList []Task) {
 		if len(parts) == 0 || len(parts[0]) < 4 {
 			continue
 		}
+		// index 0 is the string that matched
 		pid := parts[0][1]
 		ppid := parts[0][2]
 		if filters.Pid != "" && filters.Pid != pid {
 			continue
 		}
 		if filters.PPid != "" && filters.PPid != ppid {
-			continue
-		}
-		// exclude threads
-		if pid != ppid {
 			continue
 		}
 
@@ -385,7 +383,9 @@ func GetPidList(filters Filters) (taskList []Task) {
 		gid := parts[0][5]
 		comm := utils.ToAscii(parts[0][7])
 		exe := utils.ToAscii(parts[0][8])
-		// index 0 is the string that matched
+		if exe == "" {
+			exe, _ = utils.ReadlinkEscaped(constants.ProcPrefix + pid + "/exe")
+		}
 		taskList = append(taskList,
 			[]Task{
 				Task{
@@ -438,10 +438,6 @@ func GetFileList(filters Filters) (fileList []File) {
 			continue
 		}
 		if filters.PPid != "" && filters.PPid != ppid {
-			continue
-		}
-		// exclude threads
-		if pid != ppid {
 			continue
 		}
 
@@ -585,6 +581,7 @@ func GetNetlinkList(filters Filters) (nlkList []Netlink) {
 		for _, t := range tasks {
 			if t.Pid == pid {
 				exe = t.Exe
+				break
 			}
 		}
 

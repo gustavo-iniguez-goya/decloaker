@@ -45,9 +45,11 @@ int dump_tasks(struct bpf_iter__task *ctx)
 	if (pid > 0 && task->pid != (pid_t)pid) {
 		return 0;
 	}
-	if (ppid > 0 && task->tgid != (pid_t)ppid) {
-		return 0;
-	}
+    pid_t _ppid = 0;
+    bpf_probe_read_kernel(&_ppid, sizeof(_ppid), &task->real_parent->pid);
+    if (ppid > 0 && _ppid != (pid_t)ppid) {
+        return 0;
+    }
 
     const struct cred *creds = task->cred;
     if (creds){
@@ -57,7 +59,6 @@ int dump_tasks(struct bpf_iter__task *ctx)
     get_exe_info(task->mm);
 
     pid_t _pid = task->pid;
-    pid_t _ppid = task->tgid;
     char comm[TASK_COMM_LEN]={0};
     BPF_CORE_READ_STR_INTO(&comm, task, comm);
 

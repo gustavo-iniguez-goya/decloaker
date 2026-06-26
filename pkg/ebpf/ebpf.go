@@ -81,15 +81,16 @@ var (
 )
 
 type Task struct {
-	Exe      string
-	Cmdline  string
-	Comm     string
-	Hostname string
-	Inode    string
-	Uid      string
-	Gid      string
-	Pid      string
-	PPid     string
+	Exe       string
+	Cmdline   string
+	Comm      string
+	Hostname  string
+	Container string // guest
+	Inode     string
+	Uid       string
+	Gid       string
+	Pid       string
+	PPid      string
 }
 
 func (t *Task) Get(field string) (interface{}, bool) {
@@ -121,16 +122,17 @@ func (t *Task) Get(field string) (interface{}, bool) {
 }
 
 type File struct {
-	Exe      string
-	Comm     string
-	Hostname string
-	File     string
-	Uid      string
-	Gid      string
-	Inode    string
-	Fd       string
-	Pid      string
-	PPid     string
+	Exe       string
+	Comm      string
+	Hostname  string
+	Container string // guest
+	File      string
+	Uid       string
+	Gid       string
+	Inode     string
+	Fd        string
+	Pid       string
+	PPid      string
 }
 
 func (f *File) Get(field string) (interface{}, bool) {
@@ -161,18 +163,19 @@ func (f *File) Get(field string) (interface{}, bool) {
 }
 
 type Maps struct {
-	VmStart  string
-	VmEnd    string
-	Perms    string
-	Offset   string
-	Dev      string
-	Inode    string
-	File     string
-	Pid      string
-	PPid     string
-	Hostname string
-	Comm     string
-	Exe      string
+	VmStart   string
+	VmEnd     string
+	Perms     string
+	Offset    string
+	Dev       string
+	Inode     string
+	File      string
+	Pid       string
+	PPid      string
+	Hostname  string
+	Container string // guest
+	Comm      string
+	Exe       string
 }
 
 func (m *Maps) Get(field string) (interface{}, bool) {
@@ -225,11 +228,12 @@ type Kmod struct {
 }
 
 type Filters struct {
-	Pid      string
-	PPid     string
-	Inode    string
-	Exe      string
-	Hostname string
+	Pid       string
+	PPid      string
+	Inode     string
+	Exe       string
+	Hostname  string
+	Container string // guest
 }
 
 func loadIter(progName string, code []byte, filters *Filters) (*link.Iter, error) {
@@ -378,6 +382,14 @@ func GetPidList(filters Filters) (taskList []Task) {
 		if filters.Hostname != "" && filters.Hostname != host {
 			continue
 		}
+		container := ""
+		if filters.Container != "" {
+			container = host
+			host = constants.Nodename
+			if filters.Container != container {
+				continue
+			}
+		}
 
 		uid := parts[0][4]
 		gid := parts[0][5]
@@ -389,14 +401,15 @@ func GetPidList(filters Filters) (taskList []Task) {
 		taskList = append(taskList,
 			[]Task{
 				Task{
-					Pid:      pid,
-					PPid:     ppid,
-					Inode:    inode,
-					Uid:      uid,
-					Gid:      gid,
-					Hostname: host,
-					Comm:     comm,
-					Exe:      exe,
+					Pid:       pid,
+					PPid:      ppid,
+					Inode:     inode,
+					Uid:       uid,
+					Gid:       gid,
+					Hostname:  host,
+					Container: container,
+					Comm:      comm,
+					Exe:       exe,
 				},
 			}...)
 	}
@@ -446,6 +459,15 @@ func GetFileList(filters Filters) (fileList []File) {
 			continue
 		}
 
+		container := ""
+		if filters.Container != "" {
+			container = host
+			host = constants.Nodename
+			if filters.Container != container {
+				continue
+			}
+		}
+
 		fd := parts[0][3]
 		inode := parts[0][4]
 		if filters.Inode != "" && filters.Inode != inode {
@@ -461,16 +483,17 @@ func GetFileList(filters Filters) (fileList []File) {
 		fileList = append(fileList,
 			[]File{
 				File{
-					Pid:      pid,
-					PPid:     ppid,
-					Inode:    inode,
-					Fd:       fd,
-					Uid:      uid,
-					Gid:      gid,
-					Hostname: host,
-					File:     file,
-					Comm:     comm,
-					Exe:      exe,
+					Pid:       pid,
+					PPid:      ppid,
+					Inode:     inode,
+					Fd:        fd,
+					Uid:       uid,
+					Gid:       gid,
+					Hostname:  host,
+					Container: container,
+					File:      file,
+					Comm:      comm,
+					Exe:       exe,
 				},
 			}...)
 	}
@@ -657,6 +680,15 @@ func GetMapsList(filters Filters) (mapsList []Maps) {
 			continue
 		}
 
+		container := ""
+		if filters.Container != "" {
+			container = host
+			host = constants.Nodename
+			if filters.Container != container {
+				continue
+			}
+		}
+
 		mapsList = append(mapsList,
 			[]Maps{
 				Maps{
@@ -671,9 +703,10 @@ func GetMapsList(filters Filters) (mapsList []Maps) {
 					PPid:    ppid,
 					//Uid:      uid,
 					//Gid:      gid,
-					Hostname: host,
-					Comm:     comm,
-					Exe:      exe,
+					Hostname:  host,
+					Container: container,
+					Comm:      comm,
+					Exe:       exe,
 				},
 			}...)
 	}

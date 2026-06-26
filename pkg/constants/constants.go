@@ -1,5 +1,19 @@
 package constants
 
+import (
+	"bytes"
+	"golang.org/x/sys/unix"
+)
+
+var Nodename string
+
+func init() {
+	var uname unix.Utsname
+	unix.Uname(&uname)
+	temp := bytes.SplitAfter(uname.Nodename[:], []byte("\x00"))[0]
+	Nodename = string(bytes.Trim(temp[:], "\x00"))
+}
+
 const (
 	ProcPrefix = "/proc/"
 	ProcMounts = "/proc/mounts"
@@ -70,22 +84,23 @@ var (
 const (
 	FieldMethod = "method"
 
-	FieldExe      = "exe"
-	FieldExeDev   = "dev"
-	FieldCmdline  = "cmdline"
-	FieldComm     = "comm"
-	FieldPid      = "pid"
-	FieldPPid     = "ppid"
-	FieldTgid     = "tgid"
-	FieldUid      = "uid"
-	FieldGid      = "gid"
-	FieldInode    = "inode"
-	FieldHostname = "hostname"
-	FieldFile     = "file"
-	FieldPath     = "path"
-	FieldFd       = "fd"
-	FieldTime     = "time"
-	FieldDate     = "date"
+	FieldExe       = "exe"
+	FieldExeDev    = "dev"
+	FieldCmdline   = "cmdline"
+	FieldComm      = "comm"
+	FieldPid       = "pid"
+	FieldPPid      = "ppid"
+	FieldTgid      = "tgid"
+	FieldUid       = "uid"
+	FieldGid       = "gid"
+	FieldInode     = "inode"
+	FieldHostname  = "hostname"
+	FieldContainer = "container"
+	FieldFile      = "file"
+	FieldPath      = "path"
+	FieldFd        = "fd"
+	FieldTime      = "time"
+	FieldDate      = "date"
 
 	FieldProto = "proto"
 	FieldGroup = "group"

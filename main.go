@@ -522,16 +522,18 @@ func dumpFiles() {
 		ebpf.ReloadFilesIter(CLI.Dump.Files.PID, CLI.Dump.Files.PPID)
 	}
 
-	dlog.Log("%-10s %-10s %-6s %-10s %-6s %-6s %s %-16s %s\t%s\n",
-		"Pid", "PPid", "Fd", "Inode", "UID", "GID", "Hostname", "Comm", "File", "Exe")
+	dlog.Log(
+		"%-10s %-10s %-6s %-10s %-6s %-6s %-12s %-12s %-16s %-12s\t%s\n",
+		"Pid", "PPid", "Fd", "Inode", "UID", "GID", "Hostname", "Container", "Comm", "File", "Exe")
 	files := ebpf.GetFileList(
 		ebpf.Filters{
-			Hostname: CLI.Dump.Files.Host,
-			Inode:    CLI.Dump.Files.Inode,
+			Hostname:  CLI.Dump.Files.Host,
+			Container: CLI.Dump.Files.Container,
+			Inode:     CLI.Dump.Files.Inode,
 		})
 	for _, f := range files {
 		dlog.Event(dlog.DETECTION, dlog.CatDumpFiles,
-			"%-10s %-10s %-6s %-10s %-6s %-6s %s %-16s %s\t%s\n",
+			"%-10s %-10s %-6s %-10s %-6s %-6s %-12s %-12s %-16s %-12s\t%s\n",
 			[]dlog.Fields{
 				{Key: constants.FieldPid, Value: f.Pid},
 				{Key: constants.FieldPPid, Value: f.PPid},
@@ -540,6 +542,7 @@ func dumpFiles() {
 				{Key: constants.FieldUid, Value: f.Uid},
 				{Key: constants.FieldGid, Value: f.Gid},
 				{Key: constants.FieldHostname, Value: f.Hostname},
+				{Key: constants.FieldContainer, Value: f.Container},
 				{Key: constants.FieldComm, Value: f.Comm},
 				{Key: constants.FieldFile, Value: f.File},
 				{Key: constants.FieldExe, Value: f.Exe},
@@ -548,7 +551,8 @@ func dumpFiles() {
 }
 
 func dumpKmods() {
-	dlog.Log("%-20s\t%-10s\t%s\t%-18s\t%s\n",
+	dlog.Log(
+		"%-20s\t%-10s\t%s\t%-18s\t%s\n",
 		"Name", "Type", "Symbol", "Address", "Function")
 	kmods := ebpf.GetKmodList()
 	for _, k := range kmods {
@@ -568,18 +572,20 @@ func dumpTasks() {
 		ebpf.ReloadTasksIter(CLI.Dump.Tasks.PID, CLI.Dump.Tasks.PPID)
 	}
 
-	dlog.Log("%-10s %-10s %-10s %-8s %-8s %-16s %-16s %s\n",
-		"Pid", "PPid", "Inode", "UID", "GID", "Host", "Comm", "Exe")
+	dlog.Log(
+		"%-10s %-10s %-10s %-8s %-8s %-12s %-12s %-16s %s\n",
+		"Pid", "PPid", "Inode", "UID", "GID", "Host", "Container", "Comm", "Exe")
 	tasks := ebpf.GetPidList(
 		ebpf.Filters{
-			Hostname: CLI.Dump.Tasks.Host,
-			Inode:    CLI.Dump.Tasks.Inode,
+			Hostname:  CLI.Dump.Tasks.Host,
+			Container: CLI.Dump.Tasks.Container,
+			Inode:     CLI.Dump.Tasks.Inode,
 		})
 	for _, t := range tasks {
 		dlog.Event(
 			dlog.DETECTION,
 			dlog.CatDumpTasks,
-			"%-10s %-10s %-10s %-8s %-8s %-16s %-16s %s\n",
+			"%-10s %-10s %-10s %-8s %-8s %-12s %-12s %-16s %s\n",
 			[]dlog.Fields{
 				{Key: constants.FieldPid, Value: t.Pid},
 				{Key: constants.FieldPPid, Value: t.PPid},
@@ -587,6 +593,7 @@ func dumpTasks() {
 				{Key: constants.FieldUid, Value: t.Uid},
 				{Key: constants.FieldGid, Value: t.Gid},
 				{Key: constants.FieldHostname, Value: t.Hostname},
+				{Key: constants.FieldContainer, Value: t.Container},
 				{Key: constants.FieldComm, Value: t.Comm},
 				{Key: constants.FieldExe, Value: t.Exe},
 			})
@@ -598,19 +605,21 @@ func dumpMaps() {
 		ebpf.ReloadMapsIter(CLI.Dump.Maps.PID, CLI.Dump.Maps.PPID)
 	}
 
-	dlog.Log("%-14s %-14s %-6s %-8s %-8s %-12s %s %s %s %s %s %s\n",
-		"VmStart", "VmEnd", "Perms", "Offset", "Dev", "Inode", "File", "PID", "PPID", "Host", "Comm", "Exe")
+	dlog.Log(
+		"%-14s %-14s %-6s %-8s %-8s %-10s %-12s %-10s %-8s %-12s %-12s %-16s %s\n",
+		"VmStart", "VmEnd", "Perms", "Offset", "Dev", "Inode", "File", "PID", "PPID", "Host", "Container", "Comm", "Exe")
 	maps := ebpf.GetMapsList(
 		ebpf.Filters{
-			Inode:    CLI.Dump.Maps.Inode,
-			Hostname: CLI.Dump.Maps.Host,
+			Hostname:  CLI.Dump.Maps.Host,
+			Container: CLI.Dump.Maps.Container,
+			Inode:     CLI.Dump.Maps.Inode,
 		},
 	)
 	for _, m := range maps {
 		dlog.Event(
 			dlog.DETECTION,
 			dlog.CatDumpMaps,
-			"%-14s %-14s %-6s %-8s %-8s %-12s %s %s %s %s %s %s\n",
+			"%-14s %-14s %-6s %-8s %-8s %-10s %-12s %-10s %-8s %-12s %-12s %-16s %s\n",
 			[]dlog.Fields{
 				{Key: constants.FieldVmStart, Value: m.VmStart},
 				{Key: constants.FieldVmEnd, Value: m.VmEnd},
@@ -624,6 +633,7 @@ func dumpMaps() {
 				//{Key: constants.FieldUid, Value: m.Uid},
 				//{Key: constants.FieldGid, Value: m.Gid},
 				{Key: constants.FieldHostname, Value: m.Hostname},
+				{Key: constants.FieldContainer, Value: m.Container},
 				{Key: constants.FieldComm, Value: m.Comm},
 				{Key: constants.FieldExe, Value: m.Exe},
 			})

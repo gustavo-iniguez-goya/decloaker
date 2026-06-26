@@ -7,6 +7,8 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/gustavo-iniguez-goya/decloaker/pkg/log"
 )
 
 type Severity string
@@ -119,6 +121,7 @@ func (p *Pattern) Compile() error {
 func (p *Pattern) Match(provider DataProvider) bool {
 	// Get the data for this pattern's field
 	value, exists := provider.Get(p.Type)
+	log.Debug("Pattern.Match: %v - %s\n", p.Type, value)
 	if !exists {
 		return false
 	}
@@ -129,6 +132,7 @@ func (p *Pattern) Match(provider DataProvider) bool {
 	if !result {
 		return false
 	}
+	log.Debug("MATCHED\n")
 
 	// Recursively check all sub-patterns (AND logic)
 	for _, subPattern := range p.Patterns {
@@ -141,6 +145,7 @@ func (p *Pattern) Match(provider DataProvider) bool {
 }
 
 func (p *Pattern) matchValue(value interface{}) bool {
+	log.Debug("Pattern.MatchValue: %v\n", value)
 	switch p.DataType {
 	case DataRegex:
 		return p.matchRegex(value)
@@ -185,6 +190,7 @@ func (p *Pattern) matchRegex(value interface{}) bool {
 		return false
 	}
 	matched := p.compiledRegex.MatchString(str)
+	log.Debug("Pattern.MatchRegex: %s\n", str)
 
 	switch p.Operand {
 	case OpNotEqual, OpNotEqualStr:

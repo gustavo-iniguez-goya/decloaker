@@ -8,6 +8,7 @@ import (
 
 	"github.com/gustavo-iniguez-goya/decloaker/data"
 	"github.com/gustavo-iniguez-goya/decloaker/pkg/config/patterns"
+	"github.com/gustavo-iniguez-goya/decloaker/pkg/log"
 	"gopkg.in/yaml.v3"
 )
 
@@ -448,6 +449,7 @@ func (cfg *PatternsConfig) IsAllowedPID(pid int) bool {
 // New recursive pattern matching methods
 func (cfg *PatternsConfig) MatchProcess(provider patterns.DataProvider) *patterns.Pattern {
 	for i := range cfg.ProcessPatterns {
+		log.Debug("MatchProcess pattern: %v, provider: %v\n", cfg.ProcessPatterns[i], provider)
 		if cfg.ProcessPatterns[i].Match(provider) {
 			return &cfg.ProcessPatterns[i]
 		}

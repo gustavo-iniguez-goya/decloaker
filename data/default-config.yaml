@@ -80,9 +80,31 @@ patterns:
   - type: cmdline
     data_type: regex
     operand: equals
-    data: "^(\\[|)(kthread|kworker|ksoft|kcompact|kdev|ksoftirqd|kaudit|khung|khuge|kdev|kswap|oom_|cpu|irq|rcu_|psimon|migration|watchdog|idle|pool|scsi|ksmd|dmcrypt|nfs|jdb|kvm|btrfs)"
+    data: "^(\\[|)(kthread|kworker|ksoft|kcompact|kdev|ksoftirqd|kaudit|khung|khuge|kdev|kswap|oom_|cpu|irq|rcu_|psimon|migration|watchdog|idle|pool_work|scsi|ksmd|dmcrypt|nfs|jdb|jfs|kvm|btrfs)"
     severity: critical
-    description: "Userspace process impersonating a kernel thread"
+    description: "Userspace process impersonating a kernel thread (PPID > 2)"
+    patterns:
+      - type: ppid
+        data_type: int
+        operand: ">"
+        data: 2
+  - type: cmdline
+    data_type: regex
+    operand: equals
+    data: "^(\\[|)(kthread|kworker|ksoft|kcompact|kdev|ksoftirqd|kaudit|khung|khuge|kdev|kswap|oom_|cpu|irq|rcu_|psimon|migration|watchdog|idle|pool_work|scsi|ksmd|dmcrypt|nfs|jdb|jfs|kvm|btrfs)"
+    severity: critical
+    description: "Userspace process impersonating a kernel thread (PPID 1)"
+    patterns:
+      - type: ppid
+        data_type: int
+        operand: "=="
+        data: 1
+  - type: comm
+    data_type: regex
+    operand: equals
+    data: "^(\\[|)(kthread|kworker|ksoft|kcompact|kdev|ksoftirqd|kaudit|khung|khuge|kdev|kswap|oom_|cpu|irq|rcu_|psimon|migration|watchdog|idle|pool_work|scsi|ksmd|dmcrypt|nfs|jdb|jfs|kvm|btrfs)"
+    severity: critical
+    description: "Userspace process impersonating a kernel thread (comm)"
     patterns:
       - type: ppid
         data_type: int

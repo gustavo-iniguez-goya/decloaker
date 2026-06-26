@@ -76,8 +76,8 @@ int dump_tasks(struct bpf_iter__task *ctx)
         }
     }
 
-    BPF_SEQ_PRINTF(seq, "pid=%d ppid=%d inode=%d uid=%d gid=%d host=%s comm=%s exe=%s\n",
-            _pid, _ppid,
+    BPF_SEQ_PRINTF(seq, "pid=%d ppid=%d tid=%d inode=%d uid=%d gid=%d host=%s comm=%s exe=%s\n",
+            _pid, _ppid, task->tgid,
             inode,
             uid,
             gid,

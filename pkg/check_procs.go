@@ -370,7 +370,7 @@ func CheckHiddenProcsCgroups(nlTasks *taskstats.Client, expected map[string]os.F
 		if len(base) > 8 && base[len(base)-8:] != ".threads" {
 			continue
 		}
-		log.Trace("checking cgroup path %s", path)
+		log.Trace("checking cgroup path %s\n", path)
 		cgs, err := os.ReadFile(path)
 		if err != nil {
 			continue
@@ -447,6 +447,10 @@ func CheckHiddenProcs(doBruteForce bool, maxPid int) int {
 	for _, t := range liveTasks {
 		procPath := constants.ProcPrefix + t.Pid
 		if procPath == ourProcPath {
+			continue
+		}
+		if t.Tid != t.Pid {
+			log.Trace("excluding thread: %v\n", t)
 			continue
 		}
 

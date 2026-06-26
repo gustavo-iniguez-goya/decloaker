@@ -47,7 +47,7 @@ var (
 	NetlinkPath = "/sys/fs/bpf/decloaker/netlink"
 	MapsPath    = "/sys/fs/bpf/decloaker/maps"
 
-	reTasks = regexp.MustCompile(`pid=([0-9]+)\sppid=([0-9]+)\sinode=([0-9]+)\suid=([0-9]+)\sgid=([0-9]+)\shost=([0-9A-Za-z_-]+)\scomm=(.{0,16})\sexe=(.*)$`)
+	reTasks = regexp.MustCompile(`pid=([0-9]+)\sppid=([0-9]+)\stid=([0-9]+)\sinode=([0-9]+)\suid=([0-9]+)\sgid=([0-9]+)\shost=([0-9A-Za-z_-]+)\scomm=(.{0,16})\sexe=(.*)$`)
 	reFiles = regexp.MustCompile(`pid=([0-9]+)\sppid=([0-9]+)\sfd=([0-9]+)\sinode=([0-9]+)\suid=([0-9]+)\sgid=([0-9]+)\shost=([0-9A-Za-z_-]+)\sfile=(.*)\scomm=(.{0,16})\sexe=(.*)$`)
 	// addr=0xffffffffc4668010 atype=T func=hide_proc_modules_init name=lab_hide type=FTRACE_MOD 0x8000
 	reKmods = regexp.MustCompile(`addr=([a-zA-Z0-9]+)\satype=([a-zA-Z0-9])\sfunc=([a-zA-Z0-9\-_]+)\sname=([a-zA-Z0-9\-_]+)\stype=([a-zA-Z0-9\-_]+)`)
@@ -89,6 +89,7 @@ type Task struct {
 	Inode     string
 	Uid       string
 	Gid       string
+	Tid       string
 	Pid       string
 	PPid      string
 }
@@ -366,6 +367,8 @@ func GetPidList(filters Filters) (taskList []Task) {
 		// index 0 is the string that matched
 		pid := parts[0][1]
 		ppid := parts[0][2]
+		tid := parts[0][3]
+
 		if filters.Pid != "" && filters.Pid != pid {
 			continue
 		}
@@ -373,12 +376,12 @@ func GetPidList(filters Filters) (taskList []Task) {
 			continue
 		}
 
-		inode := parts[0][3]
+		inode := parts[0][4]
 		if filters.Inode != "" && filters.Inode != inode {
 			continue
 		}
 
-		host := parts[0][6]
+		host := parts[0][7]
 		if filters.Hostname != "" && filters.Hostname != host {
 			continue
 		}
@@ -391,10 +394,10 @@ func GetPidList(filters Filters) (taskList []Task) {
 			}
 		}
 
-		uid := parts[0][4]
-		gid := parts[0][5]
-		comm := utils.ToAscii(parts[0][7])
-		exe := utils.ToAscii(parts[0][8])
+		uid := parts[0][5]
+		gid := parts[0][6]
+		comm := utils.ToAscii(parts[0][8])
+		exe := utils.ToAscii(parts[0][9])
 		if exe == "" {
 			exe, _ = utils.ReadlinkEscaped(constants.ProcPrefix + pid + "/exe")
 		}
@@ -403,6 +406,7 @@ func GetPidList(filters Filters) (taskList []Task) {
 				Task{
 					Pid:       pid,
 					PPid:      ppid,
+					Tid:       tid,
 					Inode:     inode,
 					Uid:       uid,
 					Gid:       gid,

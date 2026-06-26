@@ -30,10 +30,6 @@ const (
 	PidUID       = 8
 	PidGID       = 9
 
-	ProcPrefix = "/proc/"
-	ProcMounts = "/proc/mounts"
-	ProcPidMax = "/proc/sys/kernel/pid_max"
-
 	MethodProc       = "proc"
 	MethodStat       = "stat"
 	MethodChdir      = "chdir"
@@ -51,7 +47,7 @@ var (
 
 func printHiddenPid(pid, ppid, inode, uid, gid, comm, exe string) {
 	if exe == "" {
-		exe, _ = utils.ReadlinkEscaped(ProcPrefix + pid + "/exe")
+		exe, _ = utils.ReadlinkEscaped(constants.ProcPrefix + pid + "/exe")
 	}
 
 	log.Event(log.DETECTION, log.CatHiddenPid, "WARNING (%s): pid hidden?\n\tPID: %s\tPPid: %s\n\tInode: %s\tUid: %s\tGid: %s\n\tComm: %s\n\tPath: %s\n\n",
@@ -87,8 +83,8 @@ func getPidInfo(procPath string) ([][]string, string, error) {
 }
 
 func printBinaryInfo(tgid, pid int) string {
-	cmdline, _ := os.ReadFile(fmt.Sprint(ProcPrefix, pid, "/cmdline"))
-	exe, _ := utils.ReadlinkEscaped(fmt.Sprint(ProcPrefix, pid, "/exe"))
+	cmdline, _ := os.ReadFile(fmt.Sprint(constants.ProcPrefix, pid, "/cmdline"))
+	exe, _ := utils.ReadlinkEscaped(fmt.Sprint(constants.ProcPrefix, pid, "/exe"))
 	//hiddenProcs[tgid] = exe
 
 	log.Event(log.DETECTION, log.CatHiddenPidThread, "WARNING: thread of a hidden PID found %d, ppid: %d\n\tPath: %s\n\tCmdline: %s\n\n",
@@ -105,15 +101,15 @@ func printBinaryInfo(tgid, pid int) string {
 func checkOtherMethods(nlTasks *taskstats.Client, pid int) (string, int) {
 	ret := constants.OK
 	exe := ""
-	procPath := fmt.Sprint(ProcPrefix, pid)
+	procPath := fmt.Sprint(constants.ProcPrefix, pid)
 
 	statInf := Stat([]string{procPath})
 	statWorked := len(statInf) > 0
-	chdirWorked := os.Chdir(fmt.Sprint(ProcPrefix, pid)) == nil
+	chdirWorked := os.Chdir(fmt.Sprint(constants.ProcPrefix, pid)) == nil
 	log.Trace("checkOtherMethods() stat: %v, chdir: %v\n", statWorked, chdirWorked)
 
 	// point procPath to the exe. It may be overwritten by any of the following methods.
-	procPath = fmt.Sprint(ProcPrefix, pid, "/exe")
+	procPath = fmt.Sprint(constants.ProcPrefix, pid, "/exe")
 
 	if nlTasks != nil {
 		pidStats, _ := nlTasks.PID(pid)
@@ -169,7 +165,7 @@ func bruteForcePids(nlTasks *taskstats.Client, expected map[string]os.FileInfo, 
 	ret := constants.OK
 
 	hiddenProcs := make(map[int]string)
-	pidMaxTmp, _ := os.ReadFile(ProcPidMax)
+	pidMaxTmp, _ := os.ReadFile(constants.ProcPidMax)
 	pidMax, err := strconv.Atoi(string(bytes.Trim(pidMaxTmp, "\n")))
 	if pidMax == 0 {
 		log.Debug("/proc/sys/kernel/pid_max should not be 0 (error? %s)", err)
@@ -183,12 +179,12 @@ func bruteForcePids(nlTasks *taskstats.Client, expected map[string]os.FileInfo, 
 
 	procPath := ""
 	for pid := 1; pid < pidMax; pid++ {
-		procPath = fmt.Sprint(ProcPrefix, pid)
+		procPath = fmt.Sprint(constants.ProcPrefix, pid)
 		if _, found := expected[procPath]; found || procPath == ourProcPath {
 			continue
 		}
 
-		procPath = fmt.Sprint(ProcPrefix, pid, "/comm")
+		procPath = fmt.Sprint(constants.ProcPrefix, pid, "/comm")
 		comm, err := os.ReadFile(procPath)
 		if err != nil {
 			log.Trace("bruteForce() error reading %s, trying other methods\n", procPath)
@@ -199,7 +195,7 @@ func bruteForcePids(nlTasks *taskstats.Client, expected map[string]os.FileInfo, 
 		}
 		// this PID is hidden from filesystem tools. It could be a thread or a hidden PID.
 
-		status, _, err := getPidInfo(fmt.Sprint(ProcPrefix, pid))
+		status, _, err := getPidInfo(fmt.Sprint(constants.ProcPrefix, pid))
 		if err != nil {
 			log.Info("error %d: %s\n", pid, err)
 			continue
@@ -216,9 +212,9 @@ func bruteForcePids(nlTasks *taskstats.Client, expected map[string]os.FileInfo, 
 			continue
 		}
 
-		procPath = fmt.Sprint(ProcPrefix, pid, "/cmdline")
+		procPath = fmt.Sprint(constants.ProcPrefix, pid, "/cmdline")
 		cmdline, err := os.ReadFile(procPath)
-		procPath = fmt.Sprint(ProcPrefix, pid, "/exe")
+		procPath = fmt.Sprint(constants.ProcPrefix, pid, "/exe")
 		exe, _ := utils.ReadlinkEscaped(procPath)
 		hiddenProcs[pid] = exe
 
@@ -254,14 +250,14 @@ func CheckSuspiciousProcs(cfg *config.PatternsConfig) map[string]ebpf.Task {
 
 	for _, t := range liveTasks {
 		ret = constants.OK
-		status, bin, _ := getPidInfo(fmt.Sprint(ProcPrefix, t.Pid))
+		status, bin, _ := getPidInfo(fmt.Sprint(constants.ProcPrefix, t.Pid))
 
 		msg := ""
 		if t.Exe == "" {
 			t.Exe = bin
 		}
 
-		cline, err := os.ReadFile(ProcPrefix + t.Pid + "/cmdline")
+		cline, err := os.ReadFile(constants.ProcPrefix + t.Pid + "/cmdline")
 		if err != nil {
 			log.Debug("CheckSuspiciousProcs, unable to read cmdline: %s, %s", t.Pid, t.Comm)
 			continue
@@ -340,7 +336,7 @@ func CheckBindMounts() int {
 			})
 	}
 
-	mounts, err := os.ReadFile(ProcMounts)
+	mounts, err := os.ReadFile(constants.ProcMounts)
 	if err != nil {
 		log.Error("mounted pid: %s", err)
 	} else {
@@ -384,7 +380,7 @@ func CheckHiddenProcsCgroups(nlTasks *taskstats.Client, expected map[string]os.F
 			if pid == "" || pid == ourPid {
 				continue
 			}
-			cgPid := fmt.Sprint(ProcPrefix, pid)
+			cgPid := fmt.Sprint(constants.ProcPrefix, pid)
 			if _, found := expected[cgPid]; found {
 				continue
 			}
@@ -449,7 +445,7 @@ func CheckHiddenProcs(doBruteForce bool, maxPid int) int {
 
 	liveTasks := ebpf.GetPidList(ebpf.Filters{})
 	for _, t := range liveTasks {
-		procPath := ProcPrefix + t.Pid
+		procPath := constants.ProcPrefix + t.Pid
 		if procPath == ourProcPath {
 			continue
 		}

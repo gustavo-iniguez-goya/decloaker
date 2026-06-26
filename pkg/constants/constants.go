@@ -1,5 +1,11 @@
 package constants
 
+const (
+	ProcPrefix = "/proc/"
+	ProcMounts = "/proc/mounts"
+	ProcPidMax = "/proc/sys/kernel/pid_max"
+)
+
 // Exit codes
 const (
 	OK              = 0

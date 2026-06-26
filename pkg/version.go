@@ -6,7 +6,7 @@ var (
 	Authors = []string{
 		"Gustavo Iñiguez Goya",
 	}
-	Version = "v0.0.7"
+	Version = "v0.0.8"
 	License = fmt.Sprintf(`Copyright (C) %s
 License GPLv3+: GNU GPL version 3 or later <https://gnu.org/licenses/gpl.html>.
 This is free software: you are free to change and redistribute it.
